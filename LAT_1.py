@@ -31,6 +31,24 @@ def kira_bearing_jarak(p1, p2):
 def kira_luas(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
+# --- FUNGSI EKSPORT (VERSI TANPA CACHE) ---
+def create_shapefile_zip(gdf):
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_name = "poligon_puo"
+            path = os.path.join(temp_dir, f"{base_name}.shp")
+            gdf.to_file(path)
+            
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+                for root, _, files in os.walk(temp_dir):
+                    for file in files:
+                        zip_file.write(os.path.join(root, file), arcname=file)
+            return zip_buffer.getvalue()
+    except Exception as e:
+        st.error(f"Gagal mencipta fail Shapefile: {e}")
+        return None
+
 # --- 2. SISTEM LOG MASUK ---
 
 def semak_login():
@@ -58,23 +76,19 @@ def semak_login():
 # --- 3. APLIKASI UTAMA ---
 
 if semak_login():
-    # Pastikan config hanya dipanggil sekali
     try:
         st.set_page_config(page_title="PUO Geomatik - WebGIS", layout="wide")
     except:
         pass
 
-    # Sidebar
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
     st.sidebar.header("⚙️ Kawalan Lapisan")
     
-    # Task 3 & 4: Toggles
-    on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Esri)", "Peta Standard (OSM)"])
-    on_off_bearing = st.sidebar.checkbox("📏 Papar Bearing & Jarak", value=True)
+    on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Esri/Google)", "Peta Standard (OSM)"])
     on_off_label = st.sidebar.checkbox("🏷️ Papar Label Stesen", value=True)
     
-    # Kod EPSG amat penting untuk penukaran ke Lat/Long (WGS84) supaya muncul di peta dunia
-    epsg_input = st.sidebar.text_input("🌍 Kod EPSG Asal (Contoh: 3380 untuk Perak)", value="3380")
+    # Khas untuk Johor Grid (Kertau)
+    epsg_input = st.sidebar.text_input("🌍 Kod EPSG Asal (Kertau/Johor: 4390)", value="4390")
     
     if st.sidebar.button("Keluar (Logout)"):
         st.session_state.logged_in = False
@@ -88,80 +102,55 @@ if semak_login():
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         
-        # Penukaran Koordinat ke WGS84 untuk Folium (Peta Web guna Lat/Long)
         try:
+            # AUTO CONVERT: Dari Kertau (EPSG:4390) ke WGS84 (EPSG:4326)
             gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
-            gdf_wgs84 = gdf_raw.to_crs(epsg="4326") # Tukar ke Lat/Long
+            gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
             df['lat'] = gdf_wgs84.geometry.y
             df['lon'] = gdf_wgs84.geometry.x
-        except Exception as e:
-            st.error(f"Ralat Koordinat: Sila pastikan Kod EPSG betul. {e}")
 
-        tab1, tab2 = st.tabs(["📊 Peta Interaktif", "📥 Eksport Data"])
+            tab1, tab2 = st.tabs(["📊 Peta Interaktif", "📥 Eksport Data"])
 
-        with tab1:
-            # Pengiraan Luas
-            luas = kira_luas(df['E'].values, df['N'].values)
-            st.metric("Luas Poligon", f"{luas:.3f} m²")
+            with tab1:
+                luas = kira_luas(df['E'].values, df['N'].values)
+                st.metric("Luas Poligon", f"{luas:.3f} m²")
 
-            # Mencipta Peta Folium
-            center_lat = df['lat'].mean()
-            center_lon = df['lon'].mean()
-            
-            tile_provider = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            attr = "Esri World Imagery"
-            
-            if on_off_satelit == "Peta Standard (OSM)":
-                m = folium.Map(location=[center_lat, center_lon], zoom_start=18)
-            else:
-                m = folium.Map(location=[center_lat, center_lon], zoom_start=18, tiles=tile_provider, attr=attr)
-
-            # Melukis Poligon
-            coords = list(zip(df.lat, df.lon))
-            folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
-
-            # Task 4: Label & Marker
-            for i, row in df.iterrows():
-                if on_off_label:
-                    folium.Marker(
-                        location=[row.lat, row.lon],
-                        icon=folium.DivIcon(html=f"""<div style="font-family: sans-serif; color: white; background: rgba(0,0,0,0.5); padding: 2px; border-radius: 3px;"><b>{int(row.STN)}</b></div>"""),
-                    ).add_to(m)
+                center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
                 
-                # Tambah Tooltip Info
-                folium.CircleMarker(location=[row.lat, row.lon], radius=3, color="red").add_to(m)
+                # Menggunakan Google Hybrid/Satellite Tile melalui provider Esri/Google
+                google_sat = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                
+                if on_off_satelit == "Satelit (Esri/Google)":
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=18, tiles=google_sat, attr="Google")
+                else:
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=18)
 
-            # Papar Peta dalam Streamlit
-            st_folium(m, width=1100, height=600)
+                coords = list(zip(df.lat, df.lon))
+                folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
 
-        with tab2:
-            st.subheader("📥 Muat Turun")
-            geom = Polygon(list(zip(df.E, df.N)))
-            gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
-            
-            c1, c2 = st.columns(2)
-            c1.download_button("🗺️ Simpan GeoJSON", data=gdf_export.to_json(), file_name="puo_map.geojson")
-            
-# --- FUNGSI EKSPORT (VERSI TANPA CACHE) ---
-def create_shapefile_zip(gdf):
-    try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Simpan fail shapefile ke folder sementara
-            base_name = "poligon_puo"
-            path = os.path.join(temp_dir, f"{base_name}.shp")
-            gdf.to_file(path)
-            
-            # Masukkan semua komponen shapefile (.shp, .shx, .dbf, .prj) ke dalam ZIP
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-                for root, _, files in os.walk(temp_dir):
-                    for file in files:
-                        zip_file.write(os.path.join(root, file), arcname=file)
-            return zip_buffer.getvalue()
-    except Exception as e:
-        st.error(f"Gagal mencipta fail Shapefile: {e}")
-        return None
+                for i, row in df.iterrows():
+                    if on_off_label:
+                        folium.Marker(
+                            location=[row.lat, row.lon],
+                            icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.5); border-radius:3px; padding:2px;"><b>{int(row.STN)}</b></div>"""),
+                        ).add_to(m)
+                    folium.CircleMarker(location=[row.lat, row.lon], radius=3, color="red").add_to(m)
+
+                st_folium(m, width=1100, height=600, key="map_johor")
+
+            with tab2:
+                st.subheader("📥 Muat Turun")
+                geom = Polygon(list(zip(df.E, df.N)))
+                gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
+                
+                c1, c2 = st.columns(2)
+                c1.download_button("🗺️ Simpan GeoJSON", data=gdf_export.to_json(), file_name="peta_kertau.geojson")
+                
+                shp_zip = create_shapefile_zip(gdf_export)
+                if shp_zip:
+                    c2.download_button("📁 Simpan Shapefile (ZIP)", data=shp_zip, file_name="peta_kertau_shp.zip")
+        
+        except Exception as e:
+            st.error(f"Ralat: Sila pastikan EPSG:4390 sesuai dengan koordinat CSV anda. {e}")
     else:
-        st.info("Sila muat naik fail CSV.")
-
-
+        st.info("Sila muat naik fail CSV untuk bermula.")
