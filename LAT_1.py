@@ -102,11 +102,20 @@ if semak_login():
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         
-        try:
-            gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
-            gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
-            df['lat'] = gdf_wgs84.geometry.y
-            df['lon'] = gdf_wgs84.geometry.x
+        # Pastikan bahagian ini berada di dalam gelung (loop) pengiraan bearing
+try:
+    # Ambil koordinat stesen semasa dan stesen seterusnya
+    p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
+    p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
+    
+    # Kira bearing dan jarak
+    b_text, d_val, _ = kira_bearing_jarak(p1, p2)
+    
+    # Logik marker atau label anda di sini...
+    
+except Exception as e:
+    # Jika ada ralat semasa pengiraan, ia akan dipaparkan di sini
+    st.warning(f"Ralat pengiraan pada stesen {i}: {e}")
 
             tab1, tab2 = st.tabs(["📊 Peta Interaktif", "📥 Eksport Data"])
 
@@ -140,3 +149,4 @@ if semak_login():
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
                         p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
                         b_text, d_val, _ = kira_bearing_jarak(p1, p2)
+
