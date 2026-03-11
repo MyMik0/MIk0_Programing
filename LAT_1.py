@@ -122,72 +122,70 @@ if semak_login():
     # Jalankan Intro Video Fullscreen
     video_healing_intro()
 
-    import base64
+    # --- CSS UNTUK VIDEO HEADER & NAMA AHMAD ILHAM ---
+    st.markdown("""
+        <style>
+        .header-box {
+            position: relative;
+            width: 100%;
+            height: 280px;
+            overflow: hidden;
+            border-radius: 25px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-bottom: 5px solid #ffcc00;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+        .header-video {
+            position: absolute;
+            top: 50%; left: 50%;
+            min-width: 100%; min-height: 100%;
+            z-index: 0; transform: translate(-50%, -50%);
+            filter: brightness(40%) contrast(110%);
+            object-fit: cover;
+        }
+        .header-content {
+            position: relative; z-index: 1;
+            color: white; text-align: center;
+        }
+        .header-signature {
+            position: absolute;
+            bottom: 15px;
+            right: 25px;
+            z-index: 2;
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+        [data-testid="stFileUploadDropzone"] {
+            background: rgba(255, 255, 255, 0.05) !important;
+            backdrop-filter: blur(10px);
+            border: 2px dashed rgba(255, 255, 255, 0.2) !important;
+            border-radius: 15px;
+        }
+        [data-testid="stMetricLabel"] { color: #555555 !important; font-weight: bold !important; }
+        [data-testid="stMetricValue"] { color: #1e3c72 !important; font-weight: 800 !important; }
+        .stMetric { background: #ffffff; padding: 20px; border-radius: 15px; }
+        </style>
 
-# Fungsi untuk tukar video kepada format yang boleh dibaca browser
-def get_video_base64(video_path):
-    with open(video_path, "rb") as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-
-# Tukar fail PROM.mp4 anda
-try:
-    video_base64 = get_video_base64("PROM.mp4")
-    video_src = f"data:video/mp4;base64,{video_base64}"
-except:
-    video_src = "" # Jika fail tak jumpa
-
-# --- KEMASKINI BAHAGIAN HTML HEADER ---
-st.markdown(f"""
-    <style>
-    .header-box {{
-        position: relative;
-        width: 100%;
-        height: 280px;
-        overflow: hidden;
-        border-radius: 25px;
-        margin-bottom: 30px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        border-bottom: 5px solid #ffcc00;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-    }}
-    .header-video {{
-        position: absolute;
-        top: 50%; left: 50%;
-        min-width: 100%; min-height: 100%;
-        z-index: 0; transform: translate(-50%, -50%);
-        filter: brightness(40%) contrast(110%);
-        object-fit: cover;
-    }}
-    .header-content {{
-        position: relative; z-index: 1;
-        color: white; text-align: center;
-    }}
-    .header-signature {{
-        position: absolute;
-        bottom: 15px; right: 25px;
-        z-index: 2; color: white;
-        font-family: 'Courier New', monospace;
-        font-size: 0.9rem; letter-spacing: 2px;
-        opacity: 0.7; text-transform: uppercase;
-    }}
-    </style>
-
-    <div class="header-box">
-        <video autoplay muted loop playsinline class="header-video">
-            <source src="{video_src}" type="video/mp4">
-        </video>
-        <div class="header-content">
-            <h1 style='font-size: 3.5rem; letter-spacing: 3px; margin: 0;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
-            <p style='font-size: 1.3rem; opacity: 0.9; font-style: italic;'>Precision Mapping & Visual Healing Experience</p>
+        <div class="header-box">
+            <video autoplay muted loop playsinline class="header-video">
+                <source src="PROM.mp4" type="video/mp4">
+            </video>
+            <div class="header-content">
+                <h1 style='font-size: 3.5rem; letter-spacing: 3px; margin: 0;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
+                <p style='font-size: 1.3rem; opacity: 0.9; font-style: italic;'>Precision Mapping & Visual Healing Experience</p>
+            </div>
+            <div class="header-signature">
+                Developed by: <b>AHMAD ILHAM</b>
+            </div>
         </div>
-        <div class="header-signature">
-            Developed by: <b>AHMAD ILHAM</b>
-        </div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
     # --- SIDEBAR ---
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
@@ -263,4 +261,3 @@ st.markdown(f"""
             st.error(f"⚠️ Ralat: {e}")
     else:
         st.info("💡 Sila muat naik fail CSV koordinat untuk memulakan pemetaan.")
-
