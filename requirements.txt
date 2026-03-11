@@ -1,13 +1,8 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import geopandas as gpd  # Ini yang betul, bukan import gpd
-from shapely.geometry import Polygon
-import folium
-from folium.plugins import MeasureControl, Fullscreen
-from streamlit_folium import st_folium
-import io
-import zipfile
-import tempfile
-import os
-import time
+streamlit
+pandas
+numpy
+geopandas
+shapely
+folium
+streamlit-folium
+pyogrio
