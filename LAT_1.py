@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import gpd
 import geopandas as gpd
 from shapely.geometry import Polygon
 import folium
@@ -87,7 +88,6 @@ if semak_login():
     on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Esri/Google)", "Peta Standard (OSM)"])
     on_off_label = st.sidebar.checkbox("🏷️ Papar Label Stesen", value=True)
     
-    # Khas untuk Johor Grid (Kertau)
     epsg_input = st.sidebar.text_input("🌍 Kod EPSG Asal (Kertau/Johor: 4390)", value="4390")
     
     if st.sidebar.button("Keluar (Logout)"):
@@ -103,7 +103,6 @@ if semak_login():
         df = pd.read_csv(uploaded_file)
         
         try:
-            # AUTO CONVERT: Dari Kertau (EPSG:4390) ke WGS84 (EPSG:4326)
             gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
             gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
             df['lat'] = gdf_wgs84.geometry.y
@@ -117,13 +116,13 @@ if semak_login():
 
                 center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
                 
-                # Menggunakan Google Hybrid/Satellite Tile melalui provider Esri/Google
                 google_sat = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
+                # --- ZOOM DIUBAH KE 20 ---
                 if on_off_satelit == "Satelit (Esri/Google)":
-                    m = folium.Map(location=[center_lat, center_lon], zoom_start=18, tiles=google_sat, attr="Google")
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=20, tiles=google_sat, attr="Google")
                 else:
-                    m = folium.Map(location=[center_lat, center_lon], zoom_start=18)
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=20)
 
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
