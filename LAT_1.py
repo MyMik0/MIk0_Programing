@@ -13,15 +13,17 @@ import os
 import time
 
 # ==========================================
+# --- 0. KONFIGURASI HALAMAN (MESTI PERTAMA) ---
+# ==========================================
+st.set_page_config(page_title="PUO Geomatik - WebGIS Pro", layout="wide", page_icon="🛰️")
+
+# ==========================================
 # --- 1. FUNGSI VIDEO HEALING INTRO ---
 # ==========================================
 
 def video_healing_intro():
-    if "intro_done" not in st.session_state:
-        st.session_state.intro_done = False
-
-    if not st.session_state.intro_done:
-        # Skrin Intro dengan Video
+    # Semak jika user baru sahaja login dan intro belum ditayangkan
+    if st.session_state.get("logged_in") and not st.session_state.get("intro_done"):
         placeholder = st.empty()
         with placeholder.container():
             st.markdown("""
@@ -30,15 +32,15 @@ def video_healing_intro():
                     position: fixed;
                     top: 0;
                     left: 0;
-                    width: 100%;
-                    height: 100%;
+                    width: 100vw;
+                    height: 100vh;
                     overflow: hidden;
-                    z-index: 9999;
+                    z-index: 99999;
                     background: black;
                 }
                 video {
-                    width: 100vw;
-                    height: 100vh;
+                    width: 100%;
+                    height: 100%;
                     object-fit: cover;
                 }
                 .overlay-text {
@@ -48,8 +50,8 @@ def video_healing_intro():
                     transform: translate(-50%, -50%);
                     color: white;
                     text-align: center;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+                    font-family: 'Arial', sans-serif;
+                    z-index: 100000;
                 }
                 </style>
                 <div class="video-container">
@@ -57,32 +59,29 @@ def video_healing_intro():
                         <source src="https://player.vimeo.com/external/470659635.sd.mp4?s=344583196901848527a0808246d8f8d689b78e22&profile_id=165&oauth2_token_id=57447761" type="video/mp4">
                     </video>
                     <div class="overlay-text">
-                        <h1 style="font-size: 3rem; letter-spacing: 5px;">PUO GEOMATIK</h1>
-                        <p style="font-size: 1.2rem; opacity: 0.9;">Sila tunggu sebentar, sistem sedang dimuatkan...</p>
+                        <h1 style="font-size: 4rem; letter-spacing: 10px; margin-bottom: 0;">PUO GEOMATIK</h1>
+                        <p style="font-size: 1.5rem; font-style: italic; opacity: 0.8;">Sistem Sedang Dimuatkan...</p>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
-            time.sleep(7)  # Tempoh video 7 saat
+            time.sleep(7)  # Tayang video selama 7 saat
             st.session_state.intro_done = True
-            placeholder.empty()
-            st.rerun()
+            placeholder.empty() # Kosongkan video
+            st.rerun() # Refresh untuk masuk ke aplikasi utama
 
 # ==========================================
-# --- 2. FUNGSI MATEMATIK & GEOMATIK ---
+# --- 2. FUNGSI GEOMATIK ---
 # ==========================================
 
 def to_dms(deg):
-    d = int(deg)
-    m = int((deg - d) * 60)
-    s = round((((deg - d) * 60) - m) * 60, 0)
+    d = int(deg); m = int((deg - d) * 60); s = round((((deg - d) * 60) - m) * 60, 0)
     if s == 60: m += 1; s = 0
     if m == 60: d += 1; m = 0
     return f"{d}°{m:02d}'{s:02.0f}\""
 
 def kira_bearing_jarak(p1, p2):
-    de = p2[0] - p1[0]
-    dn = p2[1] - p1[1]
+    de = p2[0] - p1[0]; dn = p2[1] - p1[1]
     jarak = np.sqrt(de**2 + dn**2)
     angle = np.degrees(np.arctan2(de, dn))
     bearing = angle if angle >= 0 else angle + 360
@@ -94,18 +93,15 @@ def kira_luas(x, y):
 def create_shapefile_zip(gdf):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            base_name = "poligon_gis_puo"
-            path = os.path.join(temp_dir, f"{base_name}.shp")
+            path = os.path.join(temp_dir, "poligon_gis_puo.shp")
             gdf.to_file(path, engine="pyogrio") 
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w") as zip_file:
                 for root, _, files in os.walk(temp_dir):
-                    for file in files:
-                        zip_file.write(os.path.join(root, file), arcname=file)
+                    for file in files: zip_file.write(os.path.join(root, file), arcname=file)
             return zip_buffer.getvalue()
     except Exception as e:
-        st.error(f"Ralat Eksport GIS: {e}")
-        return None
+        st.error(f"Ralat Eksport: {e}"); return None
 
 # ==========================================
 # --- 3. SISTEM LOG MASUK ---
@@ -116,87 +112,55 @@ def semak_login():
         st.session_state.logged_in = False
 
     if not st.session_state.logged_in:
-        st.set_page_config(page_title="Log Masuk | PUO Geomatik", page_icon="🔐")
-        st.markdown("""
-            <style>
-            .login-box {
-                background-color: #f9f9f9;
-                padding: 30px;
-                border-radius: 15px;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-                text-align: center;
-            }
-            </style>
-        """, unsafe_allow_html=True)
         st.markdown("<br><br>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
-            st.markdown('<div class="login-box">', unsafe_allow_html=True)
-            st.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=100)
-            st.subheader("🔐 Log Masuk PUO Geomatik")
+            st.markdown("""
+                <div style="background:#f9f9f9; padding:30px; border-radius:15px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+                    <img src="https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png" width="100">
+                    <h3>🔐 Log Masuk PUO Geomatik</h3>
+                </div>
+            """, unsafe_allow_html=True)
             user = st.text_input("ID Pengguna")
             pw = st.text_input("Kata Laluan", type="password")
             if st.button("Masuk Sekarang", use_container_width=True):
                 if user == "admin123" and pw == "123456":
                     st.session_state.logged_in = True
+                    st.session_state.intro_done = False # Supaya intro jalan lepas ni
                     st.rerun()
                 else:
                     st.error("ID atau Kata Laluan Salah!")
-            st.markdown('</div>', unsafe_allow_html=True)
         return False
     return True
 
 # ==========================================
-# --- 4. APLIKASI UTAMA (WEB-GIS) ---
+# --- 4. EXECUTION FLOW ---
 # ==========================================
 
 if semak_login():
-    # Jalankan video intro selepas login berjaya
+    # MESTI PANGGIL NI DULU SEBELUM HEADER APLIKASI
     video_healing_intro()
 
-    try:
-        st.set_page_config(page_title="PUO Geomatik - WebGIS Pro", layout="wide")
-    except:
-        pass
-
-    # HEADER VISUAL HEALING & CSS PERBAIKAN TEKS LUAS
+    # --- HEADER UTAMA ---
     st.markdown("""
         <style>
         .main-header {
             background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-            padding: 30px;
-            border-radius: 20px;
-            color: white;
-            text-align: center;
-            margin-bottom: 25px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            border-bottom: 4px solid #ffcc00;
+            padding: 30px; border-radius: 20px; color: white; text-align: center;
+            margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border-bottom: 4px solid #ffcc00;
         }
-        [data-testid="stMetricLabel"] {
-            color: #333333 !important;
-            font-weight: bold !important;
-        }
-        [data-testid="stMetricValue"] {
-            color: #1e3c72 !important;
-            font-weight: 800 !important;
-        }
-        .stMetric {
-            background: #ffffff;
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid #d1d8e0;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
-        }
+        [data-testid="stMetricLabel"] { color: #333333 !important; font-weight: bold !important; }
+        [data-testid="stMetricValue"] { color: #1e3c72 !important; font-weight: 800 !important; }
+        .stMetric { background: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #d1d8e0; }
         </style>
         <div class="main-header">
-            <h1 style='margin:0; letter-spacing: 2px;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
+            <h1 style='margin:0;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
             <p style='margin:0; opacity: 0.8; font-style: italic;'>Precision Mapping & Visual Healing Experience</p>
         </div>
     """, unsafe_allow_html=True)
 
-    # SIDEBAR KONTROL
+    # SIDEBAR
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
-    st.sidebar.divider()
     st.sidebar.header("⚙️ Tetapan Lapisan")
     on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Google Hybrid)", "Peta Standard (OSM)"])
     on_off_bearing = st.sidebar.checkbox("📏 Papar Bearing & Jarak", value=True)
@@ -205,14 +169,14 @@ if semak_login():
     
     if st.sidebar.button("Keluar Sistem"):
         st.session_state.logged_in = False
-        st.session_state.intro_done = False # Reset intro untuk login seterusnya
+        st.session_state.intro_done = False
         st.rerun()
 
+    # --- UPLOAD & MAPPING ---
     uploaded_file = st.file_uploader("📂 Muat naik fail CSV Koordinat (STN, E, N)", type=["csv"])
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
-        
         try:
             gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
             gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
@@ -222,57 +186,50 @@ if semak_login():
             tab1, tab2 = st.tabs(["📊 Paparan Peta Interaktif", "📥 Eksport Data GIS"])
 
             with tab1:
-                luas = kira_luas(df['E'].values, df['N'].values)
-                st.metric("Keluasan Poligon (m²)", f"{luas:.3f}")
-
-                center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
-                google_hybrid = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                st.metric("Keluasan Poligon (m²)", f"{kira_luas(df['E'].values, df['N'].values):.3f}")
+                center = [df['lat'].mean(), df['lon'].mean()]
                 
                 if on_off_satelit == "Satelit (Google Hybrid)":
-                    m = folium.Map(location=[center_lat, center_lon], zoom_start=22, max_zoom=22, tiles=google_hybrid, attr="Google")
+                    m = folium.Map(location=center, zoom_start=22, max_zoom=22, tiles="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", attr="Google")
                 else:
-                    m = folium.Map(location=[center_lat, center_lon], zoom_start=20, max_zoom=22)
+                    m = folium.Map(location=center, zoom_start=20, max_zoom=22)
 
                 Fullscreen().add_to(m)
-                MeasureControl(position='topleft', primary_length_unit='meters').add_to(m)
-
+                MeasureControl(position='topleft').add_to(m)
+                
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.25).add_to(m)
-                m.fit_bounds(coords, max_zoom=22)
+                m.fit_bounds(coords)
 
                 if on_off_bearing:
                     for i in range(len(df)):
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
                         p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
                         b_text, d_val, b_deg = kira_bearing_jarak(p1, p2)
-                        mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
-                        mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
                         
+                        # Anti-terbalik logic
                         display_angle = b_deg - 90
-                        if 90 < b_deg < 270:
-                            display_angle += 180
+                        if 90 < b_deg < 270: display_angle += 180
 
                         folium.Marker(
-                            location=[mid_lat, mid_lon],
-                            icon=folium.DivIcon(html=f"""<div style="transform: rotate({display_angle}deg); white-space: nowrap; text-align: center; width: 120px; margin-left: -60px; font-size: 8.5pt; color: #00FFFF; font-weight: bold; text-shadow: 2px 2px 4px #000;">{b_text}<br>{d_val:.2f}m</div>""")
+                            location=[(df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2, (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2],
+                            icon=folium.DivIcon(html=f'<div style="transform: rotate({display_angle}deg); color: #00FFFF; font-weight: bold; text-shadow: 2px 2px 4px #000; font-size: 9pt; text-align:center; width:100px; margin-left:-50px;">{b_text}<br>{d_val:.2f}m</div>')
                         ).add_to(m)
 
                 for i, row in df.iterrows():
                     if on_off_label:
-                        folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 5px; font-size: 10px; border: 1px solid #ffcc00; min-width:20px; text-align:center;"><b>{int(row.STN)}</b></div>""")).add_to(m)
-                    folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True, fill_color="white", fill_opacity=1).add_to(m)
+                        folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f'<div style="color: white; background: rgba(0,0,0,0.7); padding: 2px 5px; border-radius: 5px; font-size: 10px; border: 1px solid #ffcc00;"><b>{int(row.STN)}</b></div>')).add_to(m)
+                    folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True).add_to(m)
 
-                st_folium(m, width=1200, height=650, key="main_map_pro")
+                st_folium(m, width=1200, height=600, key="map")
 
             with tab2:
                 st.subheader("📥 Muat Turun Data")
                 geom = Polygon(list(zip(df.E, df.N)))
                 gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
-                c1, c2 = st.columns(2)
-                with c1: st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_export.to_json(), file_name="poligon.geojson")
-                with c2: 
-                    shp_zip = create_shapefile_zip(gdf_export)
-                    if shp_zip: st.download_button("📁 Muat Turun Shapefile (ZIP)", data=shp_zip, file_name="poligon_shp.zip")
+                st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_export.to_json(), file_name="poligon.geojson")
+                shp_zip = create_shapefile_zip(gdf_export)
+                if shp_zip: st.download_button("📁 Muat Turun Shapefile (ZIP)", data=shp_zip, file_name="poligon_shp.zip")
 
         except Exception as e:
             st.error(f"⚠️ Ralat: {e}")
