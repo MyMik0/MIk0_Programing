@@ -18,7 +18,7 @@ import base64
 # ==========================================
 st.set_page_config(page_title="PUO Geomatik - WebGIS Pro", layout="wide", page_icon="🛰️")
 
-# Fungsi penukaran video ke Base64 (Kritikal untuk kestabilan di server cloud)
+# Fungsi penukaran video ke Base64
 def get_video_base64(video_path):
     try:
         if os.path.exists(video_path):
@@ -61,7 +61,7 @@ def video_healing_intro(v_src):
                 </div>
             """, unsafe_allow_html=True)
             
-            time.sleep(7) # Tempoh tayangan intro
+            time.sleep(7)
             st.session_state.intro_done = True
             placeholder.empty()
             st.rerun()
@@ -111,12 +111,10 @@ def semak_login():
             .login-container {
                 background: rgba(255, 255, 255, 0.05);
                 backdrop-filter: blur(15px);
-                padding: 40px;
-                border-radius: 20px;
+                padding: 40px; border-radius: 20px;
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-                text-align: center;
-                margin-top: 50px;
+                text-align: center; margin-top: 50px;
             }
             .stButton>button {
                 background: linear-gradient(45deg, #800000, #b30000);
@@ -145,7 +143,6 @@ def semak_login():
             user = st.text_input("👤 ID Pengguna", placeholder="admin123 / admin124 / admin125")
             pw = st.text_input("🔑 Kata Laluan", type="password", placeholder="******")
             
-            # Logik 3 ID, 1 Password
             senarai_id = ["admin123", "admin124", "admin125"]
             pw_betul = "123456"
 
@@ -153,7 +150,7 @@ def semak_login():
                 if user in senarai_id and pw == pw_betul:
                     st.session_state.logged_in = True
                     st.session_state.intro_done = False 
-                    st.session_state.current_user = user
+                    st.session_state.current_user = user # Simpan ID yang masuk
                     st.rerun()
                 else:
                     st.error("Ralat: ID atau Kata Laluan Tidak Sah!")
@@ -165,14 +162,11 @@ def semak_login():
 # --- 4. ALIRAN EKSEKUSI UTAMA ---
 # ==========================================
 if semak_login():
-    # Sediakan data video
     video_data = get_video_base64("PROM.mp4")
     
-    # Jalankan Intro (Healing Experience)
     if video_data:
         video_healing_intro(video_data)
 
-    # Header Dashboard dengan Video Latar Belakang
     st.markdown(f"""
         <style>
         .header-box {{
@@ -208,7 +202,11 @@ if semak_login():
 
     # --- KONFIGURASI SIDEBAR ---
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
-    st.sidebar.write(f"👤 Pengguna: **{st.session_state.current_user}**")
+    
+    # PEMBETULAN RALAT: Guna .get() untuk elakkan ralat Attribute sebelum login stabil
+    user_aktif = st.session_state.get("current_user", "Pengguna")
+    st.sidebar.write(f"👤 Pengguna: **{user_aktif}**")
+    
     st.sidebar.header("⚙️ Tetapan Peta")
     on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Google)", "Standard (OSM)"])
     on_off_bearing = st.sidebar.checkbox("📏 Papar Bearing/Jarak", value=True)
@@ -220,13 +218,11 @@ if semak_login():
         st.session_state.intro_done = False
         st.rerun()
 
-    # --- MODUL PEMBACAAN DATA ---
     uploaded_file = st.file_uploader("📂 Muat naik fail CSV (Format: STN, E, N)", type=["csv"])
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         try:
-            # Penukaran Koordinat ke WGS84 untuk Folium
             gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
             gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
             df['lat'], df['lon'] = gdf_wgs84.geometry.y, gdf_wgs84.geometry.x
@@ -245,12 +241,10 @@ if semak_login():
                 Fullscreen().add_to(m)
                 MeasureControl(position='topleft').add_to(m)
                 
-                # Plot Poligon
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.3).add_to(m)
                 m.fit_bounds(coords)
 
-                # Label Bearing & Jarak
                 if on_off_bearing:
                     for i in range(len(df)):
                         p1, p2 = (df.iloc[i]['E'], df.iloc[i]['N']), (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
@@ -262,7 +256,6 @@ if semak_login():
                             icon=folium.DivIcon(html=f'<div style="transform: rotate({display_angle}deg); color: #00FFFF; font-weight: bold; text-shadow: 2px 2px 4px #000; font-size: 9pt; text-align:center; width:100px; margin-left:-50px;">{b_text}<br>{d_val:.2f}m</div>')
                         ).add_to(m)
 
-                # Marker Stesen
                 for i, row in df.iterrows():
                     if on_off_label:
                         folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f'<div style="color: white; background: rgba(128,0,0,0.8); padding: 2px 5px; border-radius: 5px; font-size: 10px; border: 1px solid #ffcc00;"><b>{int(row.STN)}</b></div>')).add_to(m)
