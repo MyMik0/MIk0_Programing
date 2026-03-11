@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import gpd as gpd
 import geopandas as gpd
 from shapely.geometry import Polygon
 import folium
@@ -82,6 +83,37 @@ if semak_login():
     except:
         pass
 
+    # --- VISUAL HEALING HEADER & CSS ---
+    st.markdown("""
+        <style>
+        .main-header {
+            background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 10px;
+        }
+        .stTabs [data-baseweb="tab"] {
+            background-color: #f0f2f6;
+            border-radius: 10px 10px 0 0;
+            padding: 10px 20px;
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: #1e3c72 !important;
+            color: white !important;
+        }
+        </style>
+        <div class="main-header">
+            <h1 style='margin:0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
+            <p style='margin:0; opacity: 0.8;'>Sistem Pemetaan Poligon Bersepadu Geomatik PUO</p>
+        </div>
+    """, unsafe_allow_html=True)
+
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
     st.sidebar.header("⚙️ Kawalan Lapisan")
     
@@ -94,9 +126,6 @@ if semak_login():
     if st.sidebar.button("Keluar (Logout)"):
         st.session_state.logged_in = False
         st.rerun()
-
-    st.markdown("## 🛰️ PUO WebGIS Plotter (Interactive)")
-    st.divider()
 
     uploaded_file = st.file_uploader("📂 Muat naik fail CSV (Format: STN, E, N)", type=["csv"])
 
@@ -131,7 +160,6 @@ if semak_login():
 
                 m.fit_bounds(coords, max_zoom=22)
 
-                # --- PAPAR BEARING & JARAK (DENGAN PEMBETULAN ARAH) ---
                 if on_off_bearing:
                     for i in range(len(df)):
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
@@ -141,9 +169,6 @@ if semak_login():
                         mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
                         mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
                         
-                        # LOGIK CSS ROTATION: 
-                        # Bearing Geomatik (0 kat atas) -> CSS Rotate (0 kat kanan)
-                        # Kita adjust sudut supaya teks sentiasa menghadap "Upright"
                         display_angle = b_deg - 90
                         if b_deg > 90 and b_deg < 270:
                             display_angle += 180
