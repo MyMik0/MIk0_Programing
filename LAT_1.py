@@ -4,6 +4,7 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon
 import folium
+from folium import plugins
 from streamlit_folium import st_folium
 import io
 import zipfile
@@ -35,8 +36,9 @@ def kira_luas(x, y):
 def create_shapefile_zip(gdf):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            base_name = "poligon_puo_gis"
+            base_name = "poligon_gis_puo"
             path = os.path.join(temp_dir, f"{base_name}.shp")
+            # Menggunakan engine pyogrio untuk kelancaran eksport
             gdf.to_file(path, engine="pyogrio") 
             
             zip_buffer = io.BytesIO()
@@ -46,7 +48,7 @@ def create_shapefile_zip(gdf):
                         zip_file.write(os.path.join(root, file), arcname=file)
             return zip_buffer.getvalue()
     except Exception as e:
-        st.error(f"Ralat Eksport GIS: {e}")
+        st.error(f"Ralat Eksport: {e}")
         return None
 
 # --- 2. SISTEM LOG MASUK ---
@@ -81,14 +83,15 @@ if semak_login():
     except:
         pass
 
+    # Sidebar
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
     st.sidebar.header("⚙️ Kawalan Lapisan")
     
-    on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Esri/Google)", "Peta Standard (OSM)"])
+    on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Google Hybrid)", "Peta Standard (OSM)"])
     on_off_bearing = st.sidebar.checkbox("📏 Papar Bearing & Jarak", value=True)
     on_off_label = st.sidebar.checkbox("🏷️ Papar Label Stesen", value=True)
     
-    epsg_input = st.sidebar.text_input("🌍 Kod EPSG Asal (Kertau/Johor: 4390)", value="4390")
+    epsg_input = st.sidebar.text_input("🌍 Kod EPSG Asal (Contoh: 4390 - Johor)", value="4390")
     
     if st.sidebar.button("Keluar (Logout)"):
         st.session_state.logged_in = False
@@ -102,45 +105,37 @@ if semak_login():
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         
-        # Pastikan bahagian ini berada di dalam gelung (loop) pengiraan bearing
-try:
-    # Ambil koordinat stesen semasa dan stesen seterusnya
-    p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
-    p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
-    
-    # Kira bearing dan jarak
-    b_text, d_val, _ = kira_bearing_jarak(p1, p2)
-    
-    # Logik marker atau label anda di sini...
-    
-except Exception as e:
-    # Jika ada ralat semasa pengiraan, ia akan dipaparkan di sini
-    st.warning(f"Ralat pengiraan pada stesen {i}: {e}")
+        try:
+            # Penukaran Koordinat ke WGS84
+            gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
+            gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
+            df['lat'] = gdf_wgs84.geometry.y
+            df['lon'] = gdf_wgs84.geometry.x
 
-            tab1, tab2 = st.tabs(["📊 Peta Interaktif", "📥 Eksport Data"])
+            tab1, tab2 = st.tabs(["📊 Peta Interaktif", "📥 Eksport Data GIS"])
 
             with tab1:
                 luas = kira_luas(df['E'].values, df['N'].values)
                 st.metric("Luas Poligon", f"{luas:.3f} m²")
 
+                # Konfigurasi Peta
                 center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
-                google_sat = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                google_hybrid = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
-                # Cipta Peta
-                if on_off_satelit == "Satelit (Esri/Google)":
-                    m = folium.Map(location=[center_lat, center_lon], zoom_start=19, tiles=google_sat, attr="Google")
+                if on_off_satelit == "Satelit (Google Hybrid)":
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=19, tiles=google_hybrid, attr="Google")
                 else:
                     m = folium.Map(location=[center_lat, center_lon], zoom_start=19)
 
-                # TAMBAH CONTROL ZOOM & SCALE (Untuk kepuasan zoom anda)
-                folium.LayerControl().add_to(m)
-                folium.plugins.Fullscreen().add_to(m) # Boleh Fullscreen untuk zoom lebih puas
-                
-                # Melukis Poligon
+                # Tambah Skala & Skrin Penuh
+                folium.plugins.Fullscreen().add_to(m)
+                folium.MeasureControl(position='topleft', primary_length_unit='meters').add_to(m)
+
+                # Lukis Poligon
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
 
-                # AUTO-ZOOM: Memastikan peta sentiasa fokus pada poligon
+                # Auto-Zoom ke Poligon
                 m.fit_bounds(coords)
 
                 # Papar Bearing & Jarak
@@ -149,4 +144,43 @@ except Exception as e:
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
                         p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
                         b_text, d_val, _ = kira_bearing_jarak(p1, p2)
+                        
+                        mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
+                        mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
+                        
+                        folium.Marker(
+                            location=[mid_lat, mid_lon],
+                            icon=folium.DivIcon(html=f"""<div style="font-size: 9pt; color: #00FFFF; font-weight: bold; text-shadow: 1px 1px #000; width: 150px;">{b_text}<br>{d_val:.2f}m</div>""")
+                        ).add_to(m)
 
+                # Papar Label Stesen
+                for i, row in df.iterrows():
+                    if on_off_label:
+                        folium.Marker(
+                            location=[row.lat, row.lon],
+                            icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.6); padding: 2px 5px; border-radius: 4px; font-size: 10px; border: 1px solid white;"><b>{int(row.STN)}</b></div>"""),
+                        ).add_to(m)
+                    folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True).add_to(m)
+
+                st_folium(m, width=1100, height=600, key="webgis_final")
+
+            with tab2:
+                st.subheader("📥 Muat Turun untuk GIS")
+                geom = Polygon(list(zip(df.E, df.N)))
+                gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
+                
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.info("GeoJSON sesuai untuk QGIS & Google Earth.")
+                    st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_export.to_json(), file_name="poligon_puo.geojson")
+                
+                with c2:
+                    st.info("Shapefile sesuai untuk ArcGIS/Professional GIS.")
+                    shp_zip = create_shapefile_zip(gdf_export)
+                    if shp_zip:
+                        st.download_button("📁 Muat Turun Shapefile (ZIP)", data=shp_zip, file_name="poligon_puo_shp.zip")
+
+        except Exception as e:
+            st.error(f"Sila pastikan format CSV betul (STN, E, N) dan Kod EPSG tepat. Ralat: {e}")
+    else:
+        st.info("Sila muat naik fail CSV untuk memulakan pemetaan.")
