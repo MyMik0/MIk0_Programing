@@ -13,67 +13,54 @@ import os
 import time
 
 # ==========================================
-# --- 0. KONFIGURASI HALAMAN (MESTI PERTAMA) ---
+# --- 0. KONFIGURASI HALAMAN ---
 # ==========================================
 st.set_page_config(page_title="PUO Geomatik - WebGIS Pro", layout="wide", page_icon="🛰️")
 
 # ==========================================
-# --- 1. FUNGSI VIDEO HEALING INTRO ---
+# --- 1. CSS UNTUK VIDEO BACKGROUND ---
 # ==========================================
+def apply_video_background():
+    st.markdown("""
+        <style>
+        /* Container untuk video background */
+        .video-bg {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            z-index: -1;
+            opacity: 0.6; /* Kawal kejelasan video di sini */
+            filter: brightness(50%); /* Gelapkan sedikit video supaya teks nampak */
+        }
+        
+        /* Menjadikan container Streamlit telus */
+        .stApp {
+            background: transparent;
+        }
 
-def video_healing_intro():
-    # Semak jika user baru sahaja login dan intro belum ditayangkan
-    if st.session_state.get("logged_in") and not st.session_state.get("intro_done"):
-        placeholder = st.empty()
-        with placeholder.container():
-            st.markdown("""
-                <style>
-                .video-container {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100vw;
-                    height: 100vh;
-                    overflow: hidden;
-                    z-index: 99999;
-                    background: black;
-                }
-                video {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                }
-                .overlay-text {
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    color: white;
-                    text-align: center;
-                    font-family: 'Arial', sans-serif;
-                    z-index: 100000;
-                }
-                </style>
-                <div class="video-container">
-                    <video autoplay muted playsinline>
-                        <source src="https://player.vimeo.com/external/470659635.sd.mp4?s=344583196901848527a0808246d8f8d689b78e22&profile_id=165&oauth2_token_id=57447761" type="video/mp4">
-                    </video>
-                    <div class="overlay-text">
-                        <h1 style="font-size: 4rem; letter-spacing: 10px; margin-bottom: 0;">PUO GEOMATIK</h1>
-                        <p style="font-size: 1.5rem; font-style: italic; opacity: 0.8;">Sistem Sedang Dimuatkan...</p>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            time.sleep(7)  # Tayang video selama 7 saat
-            st.session_state.intro_done = True
-            placeholder.empty() # Kosongkan video
-            st.rerun() # Refresh untuk masuk ke aplikasi utama
+        /* Kotak muat naik fail yang sedikit telus (Glassmorphism) */
+        [data-testid="stFileUploadDropzone"] {
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+        }
+        
+        .stMarkdown, .stInfo {
+            color: white !important;
+        }
+        </style>
+        
+        <video autoplay muted loop playsinline class="video-bg">
+            <source src="https://player.vimeo.com/external/470659635.sd.mp4?s=344583196901848527a0808246d8f8d689b78e22&profile_id=165&oauth2_token_id=57447761" type="video/mp4">
+        </video>
+    """, unsafe_allow_html=True)
 
 # ==========================================
 # --- 2. FUNGSI GEOMATIK ---
 # ==========================================
-
 def to_dms(deg):
     d = int(deg); m = int((deg - d) * 60); s = round((((deg - d) * 60) - m) * 60, 0)
     if s == 60: m += 1; s = 0
@@ -106,19 +93,19 @@ def create_shapefile_zip(gdf):
 # ==========================================
 # --- 3. SISTEM LOG MASUK ---
 # ==========================================
-
 def semak_login():
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
 
     if not st.session_state.logged_in:
+        apply_video_background() # Letak video juga di skrin login
         st.markdown("<br><br>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
             st.markdown("""
-                <div style="background:#f9f9f9; padding:30px; border-radius:15px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+                <div style="background:rgba(255,255,255,0.1); backdrop-filter: blur(15px); padding:30px; border-radius:15px; text-align:center; border: 1px solid rgba(255,255,255,0.2); box-shadow:0 8px 32px rgba(0,0,0,0.3);">
                     <img src="https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png" width="100">
-                    <h3>🔐 Log Masuk PUO Geomatik</h3>
+                    <h3 style="color: white;">🔐 Log Masuk PUO Geomatik</h3>
                 </div>
             """, unsafe_allow_html=True)
             user = st.text_input("ID Pengguna")
@@ -126,7 +113,6 @@ def semak_login():
             if st.button("Masuk Sekarang", use_container_width=True):
                 if user == "admin123" and pw == "123456":
                     st.session_state.logged_in = True
-                    st.session_state.intro_done = False # Supaya intro jalan lepas ni
                     st.rerun()
                 else:
                     st.error("ID atau Kata Laluan Salah!")
@@ -136,22 +122,22 @@ def semak_login():
 # ==========================================
 # --- 4. EXECUTION FLOW ---
 # ==========================================
-
 if semak_login():
-    # MESTI PANGGIL NI DULU SEBELUM HEADER APLIKASI
-    video_healing_intro()
+    # Paparkan Video Background
+    apply_video_background()
 
     # --- HEADER UTAMA ---
     st.markdown("""
         <style>
         .main-header {
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            background: rgba(15, 32, 39, 0.8);
+            backdrop-filter: blur(10px);
             padding: 30px; border-radius: 20px; color: white; text-align: center;
             margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border-bottom: 4px solid #ffcc00;
         }
         [data-testid="stMetricLabel"] { color: #333333 !important; font-weight: bold !important; }
         [data-testid="stMetricValue"] { color: #1e3c72 !important; font-weight: 800 !important; }
-        .stMetric { background: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #d1d8e0; }
+        .stMetric { background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; }
         </style>
         <div class="main-header">
             <h1 style='margin:0;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
@@ -162,17 +148,16 @@ if semak_login():
     # SIDEBAR
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
     st.sidebar.header("⚙️ Tetapan Lapisan")
-    on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Google Hybrid)", "Peta Standard (OSM)"])
+    on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Google Hybrid)", "Peta Standard (OS)"])
     on_off_bearing = st.sidebar.checkbox("📏 Papar Bearing & Jarak", value=True)
     on_off_label = st.sidebar.checkbox("🏷️ Papar Label Stesen", value=True)
     epsg_input = st.sidebar.text_input("🌍 Kod EPSG (Contoh: 4390)", value="4390")
     
     if st.sidebar.button("Keluar Sistem"):
         st.session_state.logged_in = False
-        st.session_state.intro_done = False
         st.rerun()
 
-    # --- UPLOAD & MAPPING ---
+    # --- SECTION MUAT NAIK (Akan nampak video background di sini) ---
     uploaded_file = st.file_uploader("📂 Muat naik fail CSV Koordinat (STN, E, N)", type=["csv"])
 
     if uploaded_file is not None:
@@ -189,6 +174,7 @@ if semak_login():
                 st.metric("Keluasan Poligon (m²)", f"{kira_luas(df['E'].values, df['N'].values):.3f}")
                 center = [df['lat'].mean(), df['lon'].mean()]
                 
+                # PETA (Peta akan menutupi video di kawasan tab peta sahaja)
                 if on_off_satelit == "Satelit (Google Hybrid)":
                     m = folium.Map(location=center, zoom_start=22, max_zoom=22, tiles="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", attr="Google")
                 else:
@@ -206,8 +192,6 @@ if semak_login():
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
                         p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
                         b_text, d_val, b_deg = kira_bearing_jarak(p1, p2)
-                        
-                        # Anti-terbalik logic
                         display_angle = b_deg - 90
                         if 90 < b_deg < 270: display_angle += 180
 
@@ -234,4 +218,4 @@ if semak_login():
         except Exception as e:
             st.error(f"⚠️ Ralat: {e}")
     else:
-        st.info("💡 Sila muat naik fail CSV koordinat.")
+        st.info("💡 Sila muat naik fail CSV koordinat di atas latar belakang awan yang tenang.")
