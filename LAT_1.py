@@ -31,13 +31,14 @@ def kira_bearing_jarak(p1, p2):
 def kira_luas(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
-# --- FUNGSI EKSPORT (VERSI TANPA CACHE) ---
+# --- FUNGSI EKSPORT KE GIS ---
 def create_shapefile_zip(gdf):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            base_name = "poligon_puo"
+            base_name = "poligon_puo_gis"
             path = os.path.join(temp_dir, f"{base_name}.shp")
-            gdf.to_file(path)
+            # Menggunakan pyogrio untuk kestabilan di Streamlit Cloud
+            gdf.to_file(path, engine="pyogrio") 
             
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -46,7 +47,7 @@ def create_shapefile_zip(gdf):
                         zip_file.write(os.path.join(root, file), arcname=file)
             return zip_buffer.getvalue()
     except Exception as e:
-        st.error(f"Gagal mencipta fail Shapefile: {e}")
+        st.error(f"Ralat Eksport GIS: {e}")
         return None
 
 # --- 2. SISTEM LOG MASUK ---
@@ -85,6 +86,7 @@ if semak_login():
     st.sidebar.header("⚙️ Kawalan Lapisan")
     
     on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Esri/Google)", "Peta Standard (OSM)"])
+    on_off_bearing = st.sidebar.checkbox("📏 Papar Bearing & Jarak", value=True)
     on_off_label = st.sidebar.checkbox("🏷️ Papar Label Stesen", value=True)
     
     epsg_input = st.sidebar.text_input("🌍 Kod EPSG Asal (Kertau/Johor: 4390)", value="4390")
@@ -114,17 +116,32 @@ if semak_login():
                 st.metric("Luas Poligon", f"{luas:.3f} m²")
 
                 center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
-                
                 google_sat = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
-                # --- ZOOM DIUBAH KE TAHAP MAKSIMUM (21) ---
                 if on_off_satelit == "Satelit (Esri/Google)":
                     m = folium.Map(location=[center_lat, center_lon], zoom_start=21, tiles=google_sat, attr="Google")
                 else:
                     m = folium.Map(location=[center_lat, center_lon], zoom_start=21)
 
+                # Melukis Poligon
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
+
+                # PAPAR BEARING & JARAK (Dinamik)
+                if on_off_bearing:
+                    for i in range(len(df)):
+                        p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
+                        p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
+                        b_text, d_val, _ = kira_bearing_jarak(p1, p2)
+                        
+                        # Cari titik tengah antara dua stesen untuk letak label
+                        mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
+                        mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
+                        
+                        folium.Marker(
+                            location=[mid_lat, mid_lon],
+                            icon=folium.DivIcon(html=f"""<div style="font-size: 8pt; color: cyan; text-shadow: 1px 1px #000; font-weight: bold; width: 150px;">{b_text}<br>{d_val:.2f}m</div>""")
+                        ).add_to(m)
 
                 for i, row in df.iterrows():
                     if on_off_label:
@@ -134,21 +151,37 @@ if semak_login():
                         ).add_to(m)
                     folium.CircleMarker(location=[row.lat, row.lon], radius=3, color="red").add_to(m)
 
-                st_folium(m, width=1100, height=600, key="map_johor")
+                st_folium(m, width=1100, height=600, key="map_johor_bearing")
 
             with tab2:
-                st.subheader("📥 Muat Turun")
+                st.subheader("📥 Muat Turun Data GIS")
+                # Bina geometri poligon untuk eksport
                 geom = Polygon(list(zip(df.E, df.N)))
                 gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
                 
-                c1, c2 = st.columns(2)
-                c1.download_button("🗺️ Simpan GeoJSON", data=gdf_export.to_json(), file_name="peta_kertau.geojson")
+                col_ex1, col_ex2 = st.columns(2)
                 
-                shp_zip = create_shapefile_zip(gdf_export)
-                if shp_zip:
-                    c2.download_button("📁 Simpan Shapefile (ZIP)", data=shp_zip, file_name="peta_kertau_shp.zip")
+                # Eksport ke GeoJSON (Format GIS Moden)
+                col_ex1.write("### 1. GeoJSON")
+                col_ex1.download_button(
+                    label="🗺️ Muat Turun GeoJSON",
+                    data=gdf_export.to_json(),
+                    file_name="poligon_puo.geojson",
+                    mime="application/json"
+                )
+                
+                # Eksport ke Shapefile (Format GIS Standard - ArcGIS/QGIS)
+                col_ex2.write("### 2. ESRI Shapefile")
+                shp_zip_data = create_shapefile_zip(gdf_export)
+                if shp_zip_data:
+                    col_ex2.download_button(
+                        label="📁 Muat Turun Shapefile (ZIP)",
+                        data=shp_zip_data,
+                        file_name="poligon_puo_shp.zip",
+                        mime="application/zip"
+                    )
         
         except Exception as e:
-            st.error(f"Ralat: Sila pastikan EPSG:4390 sesuai dengan koordinat CSV anda. {e}")
+            st.error(f"Ralat Pemprosesan: {e}")
     else:
         st.info("Sila muat naik fail CSV untuk bermula.")
