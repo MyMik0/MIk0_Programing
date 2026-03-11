@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import geopandas as gpd
-from shapely.geometry import Polygon, LineString, Point
+from shapely.geometry import Polygon, LineString
 import folium
 from folium.plugins import MeasureControl, Fullscreen
 from streamlit_folium import st_folium
@@ -29,7 +29,7 @@ def get_video_base64(video_path):
         return None
 
 # ==========================================
-# --- 1. FUNGSI INTRO VIDEO (HEALING) ---
+# --- 1. FUNGSI INTRO VIDEO ---
 # ==========================================
 def video_healing_intro(v_src):
     if st.session_state.get("logged_in") and not st.session_state.get("intro_done"):
@@ -59,7 +59,6 @@ def video_healing_intro(v_src):
                     </div>
                 </div>
             """, unsafe_allow_html=True)
-            
             time.sleep(7)
             st.session_state.intro_done = True
             placeholder.empty()
@@ -78,8 +77,10 @@ def kira_bearing_jarak(p1, p2):
     de = p2[0] - p1[0]; dn = p2[1] - p1[1]
     jarak = np.sqrt(de**2 + dn**2)
     angle = np.degrees(np.arctan2(de, dn))
-    bearing = angle if angle >= 0 else angle + 360
-    return to_dms(bearing), jarak, bearing
+    bearing_deg = angle if angle >= 0 else angle + 360
+    # Untuk pusingan label (orientasi teks)
+    rotation = 90 - angle if angle <= 90 else 450 - angle
+    return to_dms(bearing_deg), jarak, rotation
 
 def kira_luas(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
@@ -87,9 +88,7 @@ def kira_luas(x, y):
 def create_shapefile_zip(gdf):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Shapefile tidak suka mixed geometry, jadi kita simpan sebagai GeoJSON dalam ZIP 
-            # atau simpan fail utama. Untuk kegunaan GIS, GeoJSON lebih fleksibel.
-            path = os.path.join(temp_dir, "data_traves_puo.shp")
+            path = os.path.join(temp_dir, "data_geomatik.shp")
             gdf.to_file(path, engine="pyogrio") 
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -97,7 +96,7 @@ def create_shapefile_zip(gdf):
                     for file in files: zip_file.write(os.path.join(root, file), arcname=file)
             return zip_buffer.getvalue()
     except Exception as e:
-        st.error(f"Ralat Eksport: {e}"); return None
+        st.error(f"Ralat Eksport Shapefile: {e}"); return None
 
 # ==========================================
 # --- 3. SISTEM LOG MASUK ---
@@ -105,17 +104,18 @@ def create_shapefile_zip(gdf):
 def semak_login():
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
+
     if not st.session_state.logged_in:
-        col1, col2, col3 = st.columns([1, 1.5, 1])
+        col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
-            st.markdown("""<div style='text-align:center;'><h3>🔐 Log Masuk PUO Geomatik</h3></div>""", unsafe_allow_html=True)
-            user = st.text_input("ID Pengguna")
-            pw = st.text_input("Kata Laluan", type="password")
-            if st.button("Masuk Sekarang", use_container_width=True):
-                if (user == "admin123" or user == "admin124" or user == "admin125") and pw == "123456":
+            st.markdown("<div style='text-align:center; margin-top:50px;'><h2>🔐 Akses GEO-TECH</h2></div>", unsafe_allow_html=True)
+            user = st.text_input("👤 ID Pengguna")
+            pw = st.text_input("🔑 Kata Laluan", type="password")
+            if st.button("PENGESAHAN MASUK", use_container_width=True):
+                if user in ["admin123", "admin124", "admin125"] and pw == "123456":
                     st.session_state.logged_in = True
-                    st.session_state.current_user = user
                     st.session_state.intro_done = False 
+                    st.session_state.current_user = user
                     st.rerun()
                 else:
                     st.error("ID atau Kata Laluan Salah!")
@@ -123,135 +123,113 @@ def semak_login():
     return True
 
 # ==========================================
-# --- 4. ALIRAN EKSEKUSI UTAMA ---
+# --- 4. ALIRAN UTAMA ---
 # ==========================================
 if semak_login():
     video_data = get_video_base64("PROM.mp4")
-    
-    if video_data:
-        video_healing_intro(video_data)
+    if video_data: video_healing_intro(video_data)
 
+    # --- HEADER DENGAN VIDEO ---
     st.markdown(f"""
-        <style>
-        .header-box {{
-            position: relative; width: 100%; height: 280px;
-            overflow: hidden; border-radius: 25px; margin-bottom: 30px;
-            display: flex; justify-content: center; align-items: center;
-            border-bottom: 5px solid #ffcc00; box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-        }}
-        .header-video {{
-            position: absolute; top: 50%; left: 50%;
-            min-width: 100%; min-height: 100%; z-index: 0;
-            transform: translate(-50%, -50%); filter: brightness(40%); object-fit: cover;
-        }}
-        .header-content {{ position: relative; z-index: 1; color: white; text-align: center; }}
-        .header-signature {{
-            position: absolute; bottom: 15px; right: 25px; z-index: 2;
-            color: white; font-family: 'Courier New', monospace; font-size: 0.9rem;
-            opacity: 0.7;
-        }}
-        </style>
-        <div class="header-box">
-            <video autoplay muted loop playsinline class="header-video">
+        <div style="position: relative; width: 100%; height: 280px; overflow: hidden; border-radius: 25px; margin-bottom: 30px; display: flex; justify-content: center; align-items: center; border-bottom: 5px solid #ffcc00; background: black;">
+            <video autoplay muted loop playsinline style="position: absolute; min-width: 100%; min-height: 100%; filter: brightness(40%); object-fit: cover;">
                 <source src="data:video/mp4;base64,{video_data if video_data else ''}" type="video/mp4">
             </video>
-            <div class="header-content">
-                <h1 style='font-size: 3rem;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
-                <p>Precision Mapping Experience</p>
+            <div style="position: relative; color: white; text-align: center;">
+                <h1 style='font-size: 3.5rem;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
+                <p>Precision Mapping | Developed by: <b>AHMAD ILHAM</b></p>
             </div>
-            <div class="header-signature">Developed by: <b>AHMAD ILHAM</b></div>
         </div>
     """, unsafe_allow_html=True)
 
-    st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
-    st.sidebar.write(f"👤 User: **{st.session_state.get('current_user', 'Admin')}**")
-    st.sidebar.header("⚙️ Konfigurasi")
-    on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Google)", "Standard (OSM)"])
+    # SIDEBAR
+    st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=100)
+    on_off_satelit = st.sidebar.radio("🗺️ Peta Dasar", ["Satelit (Google)", "Standard (OSM)"])
     on_off_bearing = st.sidebar.checkbox("📏 Papar Bearing/Jarak", value=True)
-    on_off_label = st.sidebar.checkbox("🏷️ Papar Label Stesen", value=True)
-    epsg_input = st.sidebar.text_input("🌍 Kod EPSG", value="4390")
-    
-    if st.sidebar.button("Keluar Sistem"):
-        st.session_state.logged_in = False
-        st.session_state.intro_done = False
-        st.rerun()
+    epsg_input = st.sidebar.text_input("🌍 EPSG", value="4390")
 
-    uploaded_file = st.file_uploader("📂 Muat naik fail CSV", type=["csv"])
+    uploaded_file = st.file_uploader("📂 Muat naik CSV (STN, E, N)", type=["csv"])
+
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
         try:
             gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
             gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
             df['lat'], df['lon'] = gdf_wgs84.geometry.y, gdf_wgs84.geometry.x
-            
-            tab1, tab2 = st.tabs(["📊 Visualisasi Peta", "📥 Eksport Data GIS"])
-            
+
+            tab1, tab2 = st.tabs(["📊 Peta Interaktif", "📥 Eksport GIS"])
+
             with tab1:
-                st.metric("Luas (m²)", f"{kira_luas(df['E'].values, df['N'].values):.3f}")
-                center = [df['lat'].mean(), df['lon'].mean()]
-                m = folium.Map(location=center, zoom_start=19)
+                st.metric("Keluasan (m²)", f"{kira_luas(df['E'].values, df['N'].values):.3f}")
+                
+                # FIX 1: Tambah max_zoom dan min_zoom pada map
+                m = folium.Map(location=[df['lat'].mean(), df['lon'].mean()], zoom_start=19, max_zoom=22)
                 
                 if on_off_satelit == "Satelit (Google)":
-                    folium.TileLayer(tiles='https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attr='Google', name='Google Satellite').add_to(m)
-
+                    # FIX 2: Set max_zoom pada TileLayer supaya tidak hilang bila zoom in
+                    folium.TileLayer(
+                        tiles="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+                        attr="Google",
+                        name="Google Satellite",
+                        max_zoom=22,
+                        max_native_zoom=18 # Satelit Google biasanya limit pada 18, Folium akan 'stretch' kan selepas itu
+                    ).add_to(m)
+                
                 # Lukis Poligon
-                coords = list(zip(df.lat, df.lon))
-                folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
-
-                # Marker & Label
-                for i, row in df.iterrows():
-                    if on_off_label:
-                        folium.Marker([row.lat, row.lon], icon=folium.DivIcon(html=f'<div style="color:white; background:rgba(128,0,0,0.7); padding:2px 5px; border-radius:3px; font-size:9pt;">{int(row.STN)}</div>')).add_to(m)
-                    folium.CircleMarker([row.lat, row.lon], radius=3, color="red", fill=True).add_to(m)
-
-                # Bearing & Jarak
+                folium.Polygon(locations=list(zip(df.lat, df.lon)), color="yellow", fill=True, fill_opacity=0.2).add_to(m)
+                
+                # FIX 3: Susun semula Label Bearing & Jarak mengikut garisan
                 if on_off_bearing:
                     for i in range(len(df)):
-                        p1, p2 = (df.iloc[i]['E'], df.iloc[i]['N']), (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
-                        b_text, d_val, _ = kira_bearing_jarak(p1, p2)
-                        mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
-                        mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
-                        folium.Marker([mid_lat, mid_lon], icon=folium.DivIcon(html=f'<div style="color:#00ffff; font-weight:bold; font-size:8pt; text-shadow: 1px 1px black;">{b_text}<br>{d_val:.2f}m</div>')).add_to(m)
+                        idx1 = i
+                        idx2 = (i + 1) % len(df)
+                        p1_coord = (df.iloc[idx1]['E'], df.iloc[idx1]['N'])
+                        p2_coord = (df.iloc[idx2]['E'], df.iloc[idx2]['N'])
+                        
+                        b_text, d_val, rot = kira_bearing_jarak(p1_coord, p2_coord)
+                        
+                        # Titik tengah untuk letak label
+                        mid_lat = (df.iloc[idx1]['lat'] + df.iloc[idx2]['lat']) / 2
+                        mid_lon = (df.iloc[idx1]['lon'] + df.iloc[idx2]['lon']) / 2
+                        
+                        # Label mengikut garisan (rotated text)
+                        folium.Marker(
+                            location=[mid_lat, mid_lon],
+                            icon=folium.DivIcon(html=f"""
+                                <div style="transform: rotate({rot}deg); transform-origin: center; width: 150px; margin-left: -75px; text-align: center;">
+                                    <span style="color: #00FFFF; font-weight: bold; font-size: 8pt; text-shadow: 1px 1px 2px black; display: block;">
+                                        {b_text}<br>{d_val:.2f}m
+                                    </span>
+                                </div>""")
+                        ).add_to(m)
 
-                Fullscreen().add_to(m)
-                MeasureControl().add_to(m)
-                st_folium(m, width="100%", height=600)
+                # Marker Stesen
+                for i, row in df.iterrows():
+                    folium.CircleMarker([row.lat, row.lon], radius=4, color="red", fill=True).add_to(m)
+                    folium.Marker(
+                        [row.lat, row.lon], 
+                        icon=folium.DivIcon(html=f'<div style="color:white; font-size:10pt; font-weight:bold; background:rgba(128,0,0,0.6); padding:2px 5px; border-radius:5px; margin-top:-20px;">{int(row.STN)}</div>')
+                    ).add_to(m)
+                
+                Fullscreen().add_to(m); MeasureControl().add_to(m)
+                st_folium(m, width=1200, height=600)
 
             with tab2:
-                st.subheader("📥 Muat Turun Data Geometrik Lengkap")
-                
-                # 1. Lapisan Poligon
-                gdf_poly = gpd.GeoDataFrame({'Feature': ['Lot Tanah'], 'geometry': [Polygon(list(zip(df.E, df.N)))]}, crs=f"EPSG:{epsg_input}")
-                
-                # 2. Lapisan Stesen (Points)
+                # Logik eksport kekal mantap
+                gdf_poly = gpd.GeoDataFrame({'unsur': ['Kawasan'], 'geometry': [Polygon(list(zip(df.E, df.N)))]}, crs=f"EPSG:{epsg_input}")
                 gdf_pts = gpd.GeoDataFrame(df[['STN', 'E', 'N']], geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
                 
-                # 3. Lapisan Garisan (Lines) dengan Bearing/Jarak
-                lines_list = []
+                lines = []
                 for i in range(len(df)):
-                    p1, p2 = (df.iloc[i]['E'], df.iloc[i]['N']), (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
+                    p1, p2 = (df.iloc[i]['E'], df.iloc[i]['N']), (df.iloc[(i+1)%len(df)]['E'], df.iloc[(i+1)%len(df)]['N'])
                     b_text, d_val, _ = kira_bearing_jarak(p1, p2)
-                    lines_list.append({
-                        'geometry': LineString([p1, p2]),
-                        'Bearing': b_text,
-                        'Jarak_m': round(d_val, 3),
-                        'Dari_STN': int(df.iloc[i]['STN']),
-                        'Ke_STN': int(df.iloc[(i + 1) % len(df)]['STN'])
-                    })
-                gdf_lines = gpd.GeoDataFrame(lines_list, crs=f"EPSG:{epsg_input}")
+                    lines.append({'geometry': LineString([p1, p2]), 'bearing': b_text, 'jarak_m': round(d_val,3), 'stn_mula': int(df.iloc[i]['STN']), 'stn_akhir': int(df.iloc[(i+1)%len(df)]['STN'])})
+                gdf_lines = gpd.GeoDataFrame(lines, crs=f"EPSG:{epsg_input}")
 
-                # Gabungkan semua ke dalam satu GeoJSON (GeoJSON menyokong mixed types)
-                gdf_combined = pd.concat([gdf_poly, gdf_pts, gdf_lines], ignore_index=True)
+                gdf_full = pd.concat([gdf_poly, gdf_pts, gdf_lines], ignore_index=True)
+                st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_full.to_json(), file_name="puo_traves_lengkap.geojson")
                 
-                st.write("Klik butang di bawah untuk eksport fail:")
-                st.download_button("🛰️ Eksport ke GeoJSON (Lengkap)", data=gdf_combined.to_json(), file_name="PUO_WebGIS_Complete.geojson", use_container_width=True)
-                
-                # Eksport Shapefile (Hanya Poligon untuk kestabilan format .shp)
-                shp_zip = create_shapefile_zip(gdf_poly)
-                if shp_zip:
-                    st.download_button("📁 Eksport Shapefile Poligon (ZIP)", data=shp_zip, file_name="PUO_Lot_Shapefile.zip", use_container_width=True)
-                
-                st.success("Nota: Fail GeoJSON mengandungi data stesen, garisan traves, bearing, dan jarak yang boleh dibuka dalam QGIS/AutoCAD.")
+                shp_zip = create_shapefile_zip(gdf_full)
+                if shp_zip: st.download_button("📁 Muat Turun Shapefile", data=shp_zip, file_name="puo_shp_lengkap.zip")
 
-        except Exception as e:
-            st.error(f"Ralat Pemprosesan: {e}")
+        except Exception as e: st.error(f"⚠️ Ralat: {e}")
