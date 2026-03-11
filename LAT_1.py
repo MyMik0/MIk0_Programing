@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import gpd as gpd
-import geopandas as gpd
+import geopandas as gpd  # Gunakan ini sahaja
+from shapely.geometry import Polygon
+...
 from shapely.geometry import Polygon
 import folium
 from folium.plugins import MeasureControl, Fullscreen
@@ -211,3 +212,4 @@ if semak_login():
             st.error(f"Ralat: {e}")
     else:
         st.info("Sila muat naik fail CSV.")
+
