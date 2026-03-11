@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import geopandas as gpd  # Ini yang betul, bukan import gpd
+import geopandas as gpd
 from shapely.geometry import Polygon
 import folium
 from folium.plugins import MeasureControl, Fullscreen
@@ -11,36 +11,48 @@ import zipfile
 import tempfile
 import os
 import time
+import base64
 
 # ==========================================
 # --- 0. KONFIGURASI HALAMAN ---
 # ==========================================
 st.set_page_config(page_title="PUO Geomatik - WebGIS Pro", layout="wide", page_icon="🛰️")
 
+# Fungsi penukaran video ke Base64 (Wajib untuk video lokal di Streamlit Cloud)
+def get_video_base64(video_path):
+    try:
+        if os.path.exists(video_path):
+            with open(video_path, "rb") as f:
+                data = f.read()
+            return base64.b64encode(data).decode()
+        return None
+    except:
+        return None
+
 # ==========================================
 # --- 1. FUNGSI INTRO VIDEO (HEALING) ---
 # ==========================================
-def video_healing_intro():
+def video_healing_intro(v_src):
     if st.session_state.get("logged_in") and not st.session_state.get("intro_done"):
         placeholder = st.empty()
         with placeholder.container():
-            st.markdown("""
+            st.markdown(f"""
                 <style>
-                .intro-video-container {
+                .intro-video-container {{
                     position: fixed;
                     top: 0; left: 0; width: 100vw; height: 100vh;
                     overflow: hidden; z-index: 99999; background: black;
-                }
-                video { width: 100%; height: 100%; object-fit: cover; }
-                .intro-text {
+                }}
+                video {{ width: 100%; height: 100%; object-fit: cover; }}
+                .intro-text {{
                     position: absolute; top: 50%; left: 50%;
                     transform: translate(-50%, -50%); color: white;
                     text-align: center; font-family: 'Arial', sans-serif; z-index: 100000;
-                }
+                }}
                 </style>
                 <div class="intro-video-container">
                     <video autoplay muted playsinline>
-                        <source src="PROM.mp4" type="video/mp4">
+                        <source src="data:video/mp4;base64,{v_src}" type="video/mp4">
                     </video>
                     <div class="intro-text">
                         <h1 style="font-size: 4rem; letter-spacing: 10px; margin-bottom: 0;">PUO GEOMATIK</h1>
@@ -49,7 +61,7 @@ def video_healing_intro():
                 </div>
             """, unsafe_allow_html=True)
             
-            time.sleep(7)  # Tayangan intro selama 7 saat
+            time.sleep(7)
             st.session_state.intro_done = True
             placeholder.empty()
             st.rerun()
@@ -87,31 +99,60 @@ def create_shapefile_zip(gdf):
         st.error(f"Ralat Eksport: {e}"); return None
 
 # ==========================================
-# --- 3. SISTEM LOG MASUK ---
+# --- 3. SISTEM LOG MASUK (MODERN) ---
 # ==========================================
 def semak_login():
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
 
     if not st.session_state.logged_in:
+        st.markdown("""
+            <style>
+            .login-container {
+                background: rgba(255, 255, 255, 0.05);
+                backdrop-filter: blur(15px);
+                padding: 40px;
+                border-radius: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+                text-align: center;
+                margin-top: 50px;
+            }
+            .stButton>button {
+                background: linear-gradient(45deg, #800000, #b30000);
+                color: white; border-radius: 10px; border: none;
+                padding: 10px 20px; font-weight: bold; transition: 0.3s;
+            }
+            .stButton>button:hover {
+                transform: scale(1.02);
+                box-shadow: 0 5px 15px rgba(179, 0, 0, 0.4);
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
         st.markdown("<br><br>", unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([1, 1.5, 1])
+        col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
             st.markdown("""
-                <div style="background:#f9f9f9; padding:30px; border-radius:15px; text-align:center; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
-                    <img src="https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png" width="100">
-                    <h3>🔐 Log Masuk PUO Geomatik</h3>
+                <div class="login-container">
+                    <img src="https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png" width="120">
+                    <h2 style='margin-bottom:0; color:#800000;'>GEO-TECH PRO</h2>
+                    <p style='color:#666; font-style:italic;'>Department of Geomatic Engineering</p>
+                    <hr style='border-color: rgba(0,0,0,0.1);'>
                 </div>
             """, unsafe_allow_html=True)
-            user = st.text_input("ID Pengguna")
-            pw = st.text_input("Kata Laluan", type="password")
-            if st.button("Masuk Sekarang", use_container_width=True):
+            
+            user = st.text_input("👤 ID Pengguna", placeholder="Masukkan ID anda...")
+            pw = st.text_input("🔑 Kata Laluan", type="password", placeholder="******")
+            
+            if st.button("PENGESAHAN MASUK", use_container_width=True):
                 if user == "admin123" and pw == "123456":
                     st.session_state.logged_in = True
                     st.session_state.intro_done = False 
                     st.rerun()
                 else:
-                    st.error("ID atau Kata Laluan Salah!")
+                    st.error("Akses Ditolak: ID atau Kata Laluan Salah!")
+            st.markdown("<p style='text-align:center; font-size:0.8rem; color:grey;'>&copy; 2026 PUO Geomatics Digital Solution</p>", unsafe_allow_html=True)
         return False
     return True
 
@@ -119,71 +160,44 @@ def semak_login():
 # --- 4. ALIRAN EKSEKUSI UTAMA ---
 # ==========================================
 if semak_login():
-    # Jalankan Intro Video Fullscreen
-    video_healing_intro()
+    # Load Video PROM.mp4
+    video_data = get_video_base64("PROM.mp4")
+    
+    # Intro Video (Hanya jalan sekali lepas login)
+    if video_data:
+        video_healing_intro(video_data)
 
-    # --- CSS UNTUK VIDEO HEADER & NAMA AHMAD ILHAM ---
-    st.markdown("""
+    # Header dengan Video Bergerak
+    st.markdown(f"""
         <style>
-        .header-box {
-            position: relative;
-            width: 100%;
-            height: 280px;
-            overflow: hidden;
-            border-radius: 25px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-bottom: 5px solid #ffcc00;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-        }
-        .header-video {
-            position: absolute;
-            top: 50%; left: 50%;
-            min-width: 100%; min-height: 100%;
-            z-index: 0; transform: translate(-50%, -50%);
-            filter: brightness(40%) contrast(110%);
+        .header-box {{
+            position: relative; width: 100%; height: 280px;
+            overflow: hidden; border-radius: 25px; margin-bottom: 30px;
+            display: flex; justify-content: center; align-items: center;
+            border-bottom: 5px solid #ffcc00; box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }}
+        .header-video {{
+            position: absolute; top: 50%; left: 50%;
+            min-width: 100%; min-height: 100%; z-index: 0;
+            transform: translate(-50%, -50%); filter: brightness(40%) contrast(110%);
             object-fit: cover;
-        }
-        .header-content {
-            position: relative; z-index: 1;
-            color: white; text-align: center;
-        }
-        .header-signature {
-            position: absolute;
-            bottom: 15px;
-            right: 25px;
-            z-index: 2;
-            color: white;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-            letter-spacing: 2px;
-            opacity: 0.7;
-            text-transform: uppercase;
-        }
-        [data-testid="stFileUploadDropzone"] {
-            background: rgba(255, 255, 255, 0.05) !important;
-            backdrop-filter: blur(10px);
-            border: 2px dashed rgba(255, 255, 255, 0.2) !important;
-            border-radius: 15px;
-        }
-        [data-testid="stMetricLabel"] { color: #555555 !important; font-weight: bold !important; }
-        [data-testid="stMetricValue"] { color: #1e3c72 !important; font-weight: 800 !important; }
-        .stMetric { background: #ffffff; padding: 20px; border-radius: 15px; }
+        }}
+        .header-content {{ position: relative; z-index: 1; color: white; text-align: center; }}
+        .header-signature {{
+            position: absolute; bottom: 15px; right: 25px; z-index: 2;
+            color: white; font-family: 'Courier New', monospace; font-size: 0.9rem;
+            letter-spacing: 2px; opacity: 0.7; text-transform: uppercase;
+        }}
         </style>
-
         <div class="header-box">
             <video autoplay muted loop playsinline class="header-video">
-                <source src="PROM.mp4" type="video/mp4">
+                <source src="data:video/mp4;base64,{video_data if video_data else ''}" type="video/mp4">
             </video>
             <div class="header-content">
                 <h1 style='font-size: 3.5rem; letter-spacing: 3px; margin: 0;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
                 <p style='font-size: 1.3rem; opacity: 0.9; font-style: italic;'>Precision Mapping & Visual Healing Experience</p>
             </div>
-            <div class="header-signature">
-                Developed by: <b>AHMAD ILHAM</b>
-            </div>
+            <div class="header-signature">Developed by: <b>AHMAD ILHAM</b></div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -206,7 +220,6 @@ if semak_login():
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         try:
-            # Transformasi Koordinat
             gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
             gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
             df['lat'] = gdf_wgs84.geometry.y
@@ -216,8 +229,8 @@ if semak_login():
 
             with tab1:
                 st.metric("Keluasan Poligon (m²)", f"{kira_luas(df['E'].values, df['N'].values):.3f}")
-                
                 center = [df['lat'].mean(), df['lon'].mean()]
+                
                 if on_off_satelit == "Satelit (Google)":
                     m = folium.Map(location=center, zoom_start=22, max_zoom=22, tiles="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", attr="Google")
                 else:
@@ -236,7 +249,6 @@ if semak_login():
                         b_text, d_val, b_deg = kira_bearing_jarak(p1, p2)
                         display_angle = b_deg - 90
                         if 90 < b_deg < 270: display_angle += 180
-
                         folium.Marker(
                             location=[(df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2, (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2],
                             icon=folium.DivIcon(html=f'<div style="transform: rotate({display_angle}deg); color: #00FFFF; font-weight: bold; text-shadow: 2px 2px 4px #000; font-size: 9pt; text-align:center; width:100px; margin-left:-50px;">{b_text}<br>{d_val:.2f}m</div>')
