@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import geopandas as gpd  # Gunakan ini sahaja
-from shapely.geometry import Polygon
-...
+import geopandas as gpd
 from shapely.geometry import Polygon
 import folium
 from folium.plugins import MeasureControl, Fullscreen
@@ -12,6 +10,44 @@ import io
 import zipfile
 import tempfile
 import os
+
+# --- 1. FUNGSI MATEMATIK & GEOMATIK ---
+# (Kekalkan fungsi to_dms, kira_bearing_jarak, kira_luas, dan create_shapefile_zip anda di sini)
+
+# ... (Kod fungsi anda) ...
+
+# --- 2. SISTEM LOG MASUK ---
+# (Kekalkan fungsi semak_login anda di sini)
+
+# --- 3. APLIKASI UTAMA ---
+
+if semak_login():
+    try:
+        st.set_page_config(page_title="PUO Geomatik - WebGIS", layout="wide")
+    except:
+        pass
+
+    # --- VISUAL HEALING HEADER ---
+    st.markdown("""
+        <style>
+        .main-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 30px;
+            border-radius: 20px;
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            border-bottom: 5px solid #ffcc00;
+        }
+        </style>
+        <div class="main-header">
+            <h1 style='margin:0;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
+            <p style='margin:0; font-style: italic;'>Visualizing Precision, Empowering Geomatics</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # ... (Seterusnya sambung dengan kod sidebar dan pemetaan anda) ...
 
 # --- 1. FUNGSI MATEMATIK & GEOMATIK ---
 
@@ -212,4 +248,5 @@ if semak_login():
             st.error(f"Ralat: {e}")
     else:
         st.info("Sila muat naik fail CSV.")
+
 
