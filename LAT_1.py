@@ -60,8 +60,6 @@ def semak_login():
 
     if not st.session_state.logged_in:
         st.set_page_config(page_title="Log Masuk | PUO Geomatik", page_icon="🔐")
-        
-        # Style CSS untuk Login Page
         st.markdown("""
             <style>
             .login-box {
@@ -73,7 +71,6 @@ def semak_login():
             }
             </style>
         """, unsafe_allow_html=True)
-        
         st.markdown("<br><br>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
@@ -102,7 +99,7 @@ if semak_login():
     except:
         pass
 
-    # HEADER VISUAL HEALING
+    # HEADER VISUAL HEALING & CSS PERBAIKAN TEKS LUAS
     st.markdown("""
         <style>
         .main-header {
@@ -115,10 +112,21 @@ if semak_login():
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             border-bottom: 4px solid #ffcc00;
         }
+        /* GELAPKAN TEKS KELUASAN (METRIC) */
+        [data-testid="stMetricLabel"] {
+            color: #333333 !important; /* Warna label kelabu gelap */
+            font-weight: bold !important;
+        }
+        [data-testid="stMetricValue"] {
+            color: #1e3c72 !important; /* Warna nilai biru gelap */
+            font-weight: 800 !important;
+        }
         .stMetric {
-            background: #f1f3f6;
+            background: #ffffff;
             padding: 15px;
-            border-radius: 10px;
+            border-radius: 12px;
+            border: 1px solid #d1d8e0;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
         }
         </style>
         <div class="main-header">
@@ -140,14 +148,12 @@ if semak_login():
         st.session_state.logged_in = False
         st.rerun()
 
-    # INPUT FAIL
     uploaded_file = st.file_uploader("📂 Muat naik fail CSV Koordinat (STN, E, N)", type=["csv"])
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         
         try:
-            # Penukaran Koordinat ke WGS84
             gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
             gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
             df['lat'] = gdf_wgs84.geometry.y
@@ -156,10 +162,10 @@ if semak_login():
             tab1, tab2 = st.tabs(["📊 Paparan Peta Interaktif", "📥 Eksport Data GIS"])
 
             with tab1:
+                # Paparan Keluasan yang telah digelapkan
                 luas = kira_luas(df['E'].values, df['N'].values)
-                st.metric("Keluasan Poligon", f"{luas:.3f} m²")
+                st.metric("Keluasan Poligon (m²)", f"{luas:.3f}")
 
-                # Konfigurasi Peta Folium
                 center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
                 google_hybrid = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
@@ -168,28 +174,21 @@ if semak_login():
                 else:
                     m = folium.Map(location=[center_lat, center_lon], zoom_start=20, max_zoom=22)
 
-                # Plugins
                 Fullscreen().add_to(m)
                 MeasureControl(position='topleft', primary_length_unit='meters').add_to(m)
 
-                # Plot Poligon
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.25).add_to(m)
-
-                # Auto-Focus & Max Zoom
                 m.fit_bounds(coords, max_zoom=22)
 
-                # Loop untuk Bearing & Jarak (Teks Sejajar)
                 if on_off_bearing:
                     for i in range(len(df)):
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
                         p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
                         b_text, d_val, b_deg = kira_bearing_jarak(p1, p2)
-                        
                         mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
                         mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
                         
-                        # Logik pusingan teks (Anti-Terbalik)
                         display_angle = b_deg - 90
                         if 90 < b_deg < 270:
                             display_angle += 180
@@ -211,7 +210,6 @@ if semak_login():
                                 </div>""")
                         ).add_to(m)
 
-                # Plot Label Stesen
                 for i, row in df.iterrows():
                     if on_off_label:
                         folium.Marker(
@@ -220,14 +218,12 @@ if semak_login():
                         ).add_to(m)
                     folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True, fill_color="white", fill_opacity=1).add_to(m)
 
-                # Render Peta
                 st_folium(m, width=1200, height=650, key="main_map_pro")
 
             with tab2:
                 st.subheader("📥 Muat Turun Data")
                 geom = Polygon(list(zip(df.E, df.N)))
                 gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
-                
                 c1, c2 = st.columns(2)
                 with c1:
                     st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_export.to_json(), file_name="poligon_puo.geojson")
@@ -237,6 +233,6 @@ if semak_login():
                         st.download_button("📁 Muat Turun Shapefile (ZIP)", data=shp_zip, file_name="poligon_puo_shp.zip")
 
         except Exception as e:
-            st.error(f"⚠️ Sila semak format fail atau Kod EPSG. Ralat: {e}")
+            st.error(f"⚠️ Ralat: {e}")
     else:
-        st.info("💡 Sila muat naik fail CSV koordinat untuk melihat hasil pemetaan.")
+        st.info("💡 Sila muat naik fail CSV koordinat.")
