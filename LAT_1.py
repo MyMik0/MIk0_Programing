@@ -11,45 +11,9 @@ import zipfile
 import tempfile
 import os
 
+# ==========================================
 # --- 1. FUNGSI MATEMATIK & GEOMATIK ---
-# (Kekalkan fungsi to_dms, kira_bearing_jarak, kira_luas, dan create_shapefile_zip anda di sini)
-
-# ... (Kod fungsi anda) ...
-
-# --- 2. SISTEM LOG MASUK ---
-# (Kekalkan fungsi semak_login anda di sini)
-
-# --- 3. APLIKASI UTAMA ---
-
-if semak_login():
-    try:
-        st.set_page_config(page_title="PUO Geomatik - WebGIS", layout="wide")
-    except:
-        pass
-
-    # --- VISUAL HEALING HEADER ---
-    st.markdown("""
-        <style>
-        .main-header {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            padding: 30px;
-            border-radius: 20px;
-            color: white;
-            text-align: center;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            border-bottom: 5px solid #ffcc00;
-        }
-        </style>
-        <div class="main-header">
-            <h1 style='margin:0;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
-            <p style='margin:0; font-style: italic;'>Visualizing Precision, Empowering Geomatics</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # ... (Seterusnya sambung dengan kod sidebar dan pemetaan anda) ...
-
-# --- 1. FUNGSI MATEMATIK & GEOMATIK ---
+# ==========================================
 
 def to_dms(deg):
     d = int(deg)
@@ -70,14 +34,12 @@ def kira_bearing_jarak(p1, p2):
 def kira_luas(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
-# --- FUNGSI EKSPORT KE GIS ---
 def create_shapefile_zip(gdf):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             base_name = "poligon_gis_puo"
             path = os.path.join(temp_dir, f"{base_name}.shp")
             gdf.to_file(path, engine="pyogrio") 
-            
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w") as zip_file:
                 for root, _, files in os.walk(temp_dir):
@@ -85,10 +47,12 @@ def create_shapefile_zip(gdf):
                         zip_file.write(os.path.join(root, file), arcname=file)
             return zip_buffer.getvalue()
     except Exception as e:
-        st.error(f"Ralat Eksport: {e}")
+        st.error(f"Ralat Eksport GIS: {e}")
         return None
 
+# ==========================================
 # --- 2. SISTEM LOG MASUK ---
+# ==========================================
 
 def semak_login():
     if "logged_in" not in st.session_state:
@@ -96,91 +60,106 @@ def semak_login():
 
     if not st.session_state.logged_in:
         st.set_page_config(page_title="Log Masuk | PUO Geomatik", page_icon="🔐")
+        
+        # Style CSS untuk Login Page
+        st.markdown("""
+            <style>
+            .login-box {
+                background-color: #f9f9f9;
+                padding: 30px;
+                border-radius: 15px;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                text-align: center;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
         st.markdown("<br><br>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
+            st.markdown('<div class="login-box">', unsafe_allow_html=True)
             st.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=100)
-            st.subheader("🔐 Log Masuk Sistem Poligon")
+            st.subheader("🔐 Log Masuk PUO Geomatik")
             user = st.text_input("ID Pengguna")
             pw = st.text_input("Kata Laluan", type="password")
-            if st.button("Masuk", use_container_width=True):
+            if st.button("Masuk Sekarang", use_container_width=True):
                 if user == "admin123" and pw == "123456":
                     st.session_state.logged_in = True
                     st.rerun()
                 else:
                     st.error("ID atau Kata Laluan Salah!")
+            st.markdown('</div>', unsafe_allow_html=True)
         return False
     return True
 
-# --- 3. APLIKASI UTAMA ---
+# ==========================================
+# --- 3. APLIKASI UTAMA (WEB-GIS) ---
+# ==========================================
 
 if semak_login():
     try:
-        st.set_page_config(page_title="PUO Geomatik - WebGIS", layout="wide")
+        st.set_page_config(page_title="PUO Geomatik - WebGIS Pro", layout="wide")
     except:
         pass
 
-    # --- VISUAL HEALING HEADER & CSS ---
+    # HEADER VISUAL HEALING
     st.markdown("""
         <style>
         .main-header {
-            background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-            padding: 20px;
-            border-radius: 15px;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            padding: 30px;
+            border-radius: 20px;
             color: white;
             text-align: center;
             margin-bottom: 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border-bottom: 4px solid #ffcc00;
         }
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
-        }
-        .stTabs [data-baseweb="tab"] {
-            background-color: #f0f2f6;
-            border-radius: 10px 10px 0 0;
-            padding: 10px 20px;
-        }
-        .stTabs [aria-selected="true"] {
-            background-color: #1e3c72 !important;
-            color: white !important;
+        .stMetric {
+            background: #f1f3f6;
+            padding: 15px;
+            border-radius: 10px;
         }
         </style>
         <div class="main-header">
-            <h1 style='margin:0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
-            <p style='margin:0; opacity: 0.8;'>Sistem Pemetaan Poligon Bersepadu Geomatik PUO</p>
+            <h1 style='margin:0; letter-spacing: 2px;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
+            <p style='margin:0; opacity: 0.8; font-style: italic;'>Precision Mapping & Visual Healing Experience</p>
         </div>
     """, unsafe_allow_html=True)
 
+    # SIDEBAR KONTROL
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
-    st.sidebar.header("⚙️ Kawalan Lapisan")
-    
+    st.sidebar.divider()
+    st.sidebar.header("⚙️ Tetapan Lapisan")
     on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Google Hybrid)", "Peta Standard (OSM)"])
     on_off_bearing = st.sidebar.checkbox("📏 Papar Bearing & Jarak", value=True)
     on_off_label = st.sidebar.checkbox("🏷️ Papar Label Stesen", value=True)
+    epsg_input = st.sidebar.text_input("🌍 Kod EPSG (Contoh: 4390)", value="4390")
     
-    epsg_input = st.sidebar.text_input("🌍 Kod EPSG Asal (Contoh: 4390 - Johor)", value="4390")
-    
-    if st.sidebar.button("Keluar (Logout)"):
+    if st.sidebar.button("Keluar Sistem"):
         st.session_state.logged_in = False
         st.rerun()
 
-    uploaded_file = st.file_uploader("📂 Muat naik fail CSV (Format: STN, E, N)", type=["csv"])
+    # INPUT FAIL
+    uploaded_file = st.file_uploader("📂 Muat naik fail CSV Koordinat (STN, E, N)", type=["csv"])
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         
         try:
+            # Penukaran Koordinat ke WGS84
             gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
             gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
             df['lat'] = gdf_wgs84.geometry.y
             df['lon'] = gdf_wgs84.geometry.x
 
-            tab1, tab2 = st.tabs(["📊 Peta Interaktif", "📥 Eksport Data GIS"])
+            tab1, tab2 = st.tabs(["📊 Paparan Peta Interaktif", "📥 Eksport Data GIS"])
 
             with tab1:
                 luas = kira_luas(df['E'].values, df['N'].values)
-                st.metric("Luas Poligon", f"{luas:.3f} m²")
+                st.metric("Keluasan Poligon", f"{luas:.3f} m²")
 
+                # Konfigurasi Peta Folium
                 center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
                 google_hybrid = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
@@ -189,14 +168,18 @@ if semak_login():
                 else:
                     m = folium.Map(location=[center_lat, center_lon], zoom_start=20, max_zoom=22)
 
+                # Plugins
                 Fullscreen().add_to(m)
                 MeasureControl(position='topleft', primary_length_unit='meters').add_to(m)
 
+                # Plot Poligon
                 coords = list(zip(df.lat, df.lon))
-                folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
+                folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.25).add_to(m)
 
+                # Auto-Focus & Max Zoom
                 m.fit_bounds(coords, max_zoom=22)
 
+                # Loop untuk Bearing & Jarak (Teks Sejajar)
                 if on_off_bearing:
                     for i in range(len(df)):
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
@@ -206,8 +189,9 @@ if semak_login():
                         mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
                         mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
                         
+                        # Logik pusingan teks (Anti-Terbalik)
                         display_angle = b_deg - 90
-                        if b_deg > 90 and b_deg < 270:
+                        if 90 < b_deg < 270:
                             display_angle += 180
 
                         folium.Marker(
@@ -217,36 +201,42 @@ if semak_login():
                                     transform: rotate({display_angle}deg); 
                                     white-space: nowrap;
                                     text-align: center;
-                                    width: 100px;
-                                    margin-left: -50px;
-                                    font-size: 8pt; 
+                                    width: 120px;
+                                    margin-left: -60px;
+                                    font-size: 8.5pt; 
                                     color: #00FFFF; 
                                     font-weight: bold; 
-                                    text-shadow: 1px 1px #000;">
+                                    text-shadow: 2px 2px 4px #000;">
                                     {b_text}<br>{d_val:.2f}m
                                 </div>""")
                         ).add_to(m)
 
+                # Plot Label Stesen
                 for i, row in df.iterrows():
                     if on_off_label:
-                        folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.6); padding: 2px 5px; border-radius: 4px; font-size: 10px; border: 1px solid white;"><b>{int(row.STN)}</b></div>""")).add_to(m)
-                    folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True).add_to(m)
+                        folium.Marker(
+                            location=[row.lat, row.lon],
+                            icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 5px; font-size: 10px; border: 1px solid #ffcc00; min-width:20px; text-align:center;"><b>{int(row.STN)}</b></div>"""),
+                        ).add_to(m)
+                    folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True, fill_color="white", fill_opacity=1).add_to(m)
 
-                st_folium(m, width=1100, height=600, key="webgis_aligned_final")
+                # Render Peta
+                st_folium(m, width=1200, height=650, key="main_map_pro")
 
             with tab2:
-                st.subheader("📥 Muat Turun untuk GIS")
+                st.subheader("📥 Muat Turun Data")
                 geom = Polygon(list(zip(df.E, df.N)))
                 gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
+                
                 c1, c2 = st.columns(2)
-                with c1: st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_export.to_json(), file_name="poligon.geojson")
-                with c2: 
+                with c1:
+                    st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_export.to_json(), file_name="poligon_puo.geojson")
+                with c2:
                     shp_zip = create_shapefile_zip(gdf_export)
-                    if shp_zip: st.download_button("📁 Muat Turun Shapefile (ZIP)", data=shp_zip, file_name="poligon_shp.zip")
+                    if shp_zip:
+                        st.download_button("📁 Muat Turun Shapefile (ZIP)", data=shp_zip, file_name="poligon_puo_shp.zip")
 
         except Exception as e:
-            st.error(f"Ralat: {e}")
+            st.error(f"⚠️ Sila semak format fail atau Kod EPSG. Ralat: {e}")
     else:
-        st.info("Sila muat naik fail CSV.")
-
-
+        st.info("💡 Sila muat naik fail CSV koordinat untuk melihat hasil pemetaan.")
