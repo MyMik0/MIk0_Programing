@@ -31,17 +31,6 @@ def kira_bearing_jarak(p1, p2):
 def kira_luas(x, y):
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
-@st.cache_data
-def create_shapefile_zip(gdf):
-    with tempfile.TemporaryDirectory() as temp_dir:
-        gdf.to_file(os.path.join(temp_dir, "poligon_puo.shp"))
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-            for root, _, files in os.walk(temp_dir):
-                for file in files:
-                    zip_file.write(os.path.join(root, file), arcname=file)
-        return zip_buffer.getvalue()
-
 # --- 2. SISTEM LOG MASUK ---
 
 def semak_login():
@@ -157,3 +146,4 @@ if semak_login():
             c2.download_button("📁 Simpan Shapefile (ZIP)", data=shp_zip, file_name="puo_shp.zip")
     else:
         st.info("Sila muat naik fail CSV.")
+
