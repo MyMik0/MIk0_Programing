@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import gpd
+import geopandas as gpd  # Ini yang betul, bukan import gpd
 from shapely.geometry import Polygon
 import folium
 from folium.plugins import MeasureControl, Fullscreen
@@ -150,7 +150,6 @@ if semak_login():
             position: relative; z-index: 1;
             color: white; text-align: center;
         }
-        /* Style untuk nama di penjuru bawah */
         .header-signature {
             position: absolute;
             bottom: 15px;
