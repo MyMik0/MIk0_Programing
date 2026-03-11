@@ -1,16 +1,10 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import gpd
-import geopandas as gpd
+import geopandas as gpd  # Gunakan ini sahaja
 from shapely.geometry import Polygon
 import folium
 from streamlit_folium import st_folium
-import io
-import zipfile
-import tempfile
-import os
-
 # --- 1. FUNGSI MATEMATIK & GEOMATIK ---
 
 def to_dms(deg):
@@ -153,3 +147,4 @@ if semak_login():
             st.error(f"Ralat: Sila pastikan EPSG:4390 sesuai dengan koordinat CSV anda. {e}")
     else:
         st.info("Sila muat naik fail CSV untuk bermula.")
+
