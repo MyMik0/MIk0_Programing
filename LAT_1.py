@@ -9,8 +9,20 @@ import io
 import zipfile
 import tempfile
 import os
+import requests
+from streamlit_lottie import st_lottie  # Perlu tambah dalam requirements.txt
 
-# --- 1. FUNGSI MATEMATIK & GEOMATIK ---
+# --- 1. FUNGSI VISUAL BERGERAK (LOTTIE) ---
+def load_lottieurl(url):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+
+# Animasi Geomatik/Map
+lottie_geo = load_lottieurl("https://assets.lottiefiles.com/packages/lf20_5njp7v9p.json") # Animasi globe/map
+
+# --- 2. FUNGSI MATEMATIK & GEOMATIK ---
 
 def to_dms(deg):
     d = int(deg)
@@ -42,7 +54,7 @@ def create_shapefile_zip(gdf):
                     zip_file.write(os.path.join(root, file), arcname=file)
         return zip_buffer.getvalue()
 
-# --- 2. SISTEM LOG MASUK ---
+# --- 3. SISTEM LOG MASUK ---
 
 def semak_login():
     if "logged_in" not in st.session_state:
@@ -53,7 +65,7 @@ def semak_login():
         st.markdown("<br><br>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 1.5, 1])
         with col2:
-            st.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=100)
+            st_lottie(lottie_geo, height=150, key="login_geo") # Animasi bergerak di login
             st.subheader("🔐 Log Masuk Sistem Poligon")
             user = st.text_input("ID Pengguna")
             pw = st.text_input("Kata Laluan", type="password")
@@ -66,13 +78,25 @@ def semak_login():
         return False
     return True
 
-# --- 3. APLIKASI UTAMA ---
+# --- 4. APLIKASI UTAMA ---
 
 if semak_login():
     st.set_page_config(page_title="PUO Geomatik - WebGIS", layout="wide")
 
+    # --- HEADER VISUAL BERGERAK ---
+    head_col1, head_col2 = st.columns([1, 4])
+    with head_col1:
+        st_lottie(lottie_geo, height=120, key="main_geo") # Animasi bergerak di header utama
+    with head_col2:
+        st.markdown("""
+            <h1 style='margin-bottom:0;'>POLITEKNIK UNGKU OMAR</h1>
+            <p style='font-size:1.5rem; color: #007BFF;'><b>Jabatan Kejuruteraan Geomatik - WebGIS Plotter</b></p>
+            <marquee style='color: gray; font-size: 0.9rem;'>Selamat Datang ke Sistem Plot Poligon Automatik v2.0 - Sila muat naik fail CSV anda untuk memulakan pemetaan...</marquee>
+        """, unsafe_allow_html=True)
+    
+    st.divider()
+
     # Sidebar
-    st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
     st.sidebar.header("⚙️ Kawalan Lapisan")
     on_off_satelit = st.sidebar.checkbox("🌍 Imej Satelit (Task 3)", value=False)
     on_off_bearing = st.sidebar.checkbox("📏 Bearing & Jarak", value=True)
@@ -82,11 +106,6 @@ if semak_login():
     if st.sidebar.button("Keluar (Logout)"):
         st.session_state.logged_in = False
         st.rerun()
-
-    # Header
-    st.markdown("<h2 style='margin-bottom:0;'>POLITEKNIK UNGKU OMAR</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='font-size:1.2rem;'>Jabatan Kejuruteraan Geomatik - WebGIS Plotter</p>", unsafe_allow_html=True)
-    st.divider()
 
     # Upload Fail
     uploaded_file = st.file_uploader("📂 Muat naik fail CSV (Format: STN, E, N)", type=["csv"])
@@ -119,27 +138,23 @@ if semak_login():
                         ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color='black', marker='o', 
                                 linewidth=2, markersize=5, markerfacecolor='white', zorder=4)
 
-                        # Task 4: Toggle Bearing/Jarak
                         if on_off_bearing:
                             brg_s, dist, brg_v = kira_bearing_jarak(p1, p2)
                             mid_x, mid_y = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
                             ax.text(mid_x, mid_y, f"{brg_s}\n{dist:.2f}m", color='red', 
                                     fontsize=8, fontweight='bold', ha='center', zorder=5)
 
-                    # Task 4: Toggle Label Stesen
                     if on_off_label:
                         for _, row in df.iterrows():
                             ax.text(row['E'], row['N'], f" {int(row['STN'])}", fontsize=10, 
                                     fontweight='bold', bbox=dict(facecolor='yellow', alpha=0.5))
 
-                    # Papar Luas
                     if st.session_state.get('tampilkan_luas', False):
                         luas = kira_luas(df['E'].values, df['N'].values)
                         ax.fill(df['E'], df['N'], alpha=0.2, color='green')
                         ax.text(cx, cy, f"LUAS\n{luas:.2f} m²", fontsize=14, color='darkgreen', 
                                 ha='center', bbox=dict(facecolor='white', alpha=0.7))
 
-                    # Task 3: Satelit
                     if on_off_satelit:
                         try:
                             ctx.add_basemap(ax, crs=f"EPSG:{epsg_code}", source=ctx.providers.Esri.WorldImagery)
@@ -150,7 +165,7 @@ if semak_login():
                     st.pyplot(fig)
 
         with tab2:
-            st.subheader("📥 Muat Turun Data Geospasial (Task 2)")
+            st.subheader("📥 Muat Turun Data Geospasial")
             geom = Polygon(points)
             gdf = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_code}")
             
@@ -159,6 +174,5 @@ if semak_login():
             
             shp_zip = create_shapefile_zip(gdf)
             c2.download_button("📁 Simpan Shapefile (ZIP)", data=shp_zip, file_name="peta_puo_shp.zip")
-
     else:
         st.info("Sila muat naik fail CSV untuk bermula.")
