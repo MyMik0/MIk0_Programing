@@ -118,7 +118,6 @@ if semak_login():
                 center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
                 google_hybrid = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
-                # TETAPAN ZOOM ULTRA (TAHAP 22)
                 if on_off_satelit == "Satelit (Google Hybrid)":
                     m = folium.Map(location=[center_lat, center_lon], zoom_start=22, max_zoom=22, tiles=google_hybrid, attr="Google")
                 else:
@@ -132,7 +131,7 @@ if semak_login():
 
                 m.fit_bounds(coords, max_zoom=22)
 
-                # --- PAPAR BEARING & JARAK MENGIKUT GARISAN ---
+                # --- PAPAR BEARING & JARAK (DENGAN PEMBETULAN ARAH) ---
                 if on_off_bearing:
                     for i in range(len(df)):
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
@@ -142,20 +141,22 @@ if semak_login():
                         mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
                         mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
                         
-                        # Laraskan sudut tulisan: Sudut CSS dikira dari ufuk (horizontal)
-                        # Kita tolak 90 kerana bearing geomatik bermula dari Utara
-                        rot_angle = b_deg - 90
-                        if 90 < b_deg < 270: rot_angle += 180 # Supaya tulisan tidak terbalik (upside down)
+                        # LOGIK CSS ROTATION: 
+                        # Bearing Geomatik (0 kat atas) -> CSS Rotate (0 kat kanan)
+                        # Kita adjust sudut supaya teks sentiasa menghadap "Upright"
+                        display_angle = b_deg - 90
+                        if b_deg > 90 and b_deg < 270:
+                            display_angle += 180
 
                         folium.Marker(
                             location=[mid_lat, mid_lon],
                             icon=folium.DivIcon(html=f"""
                                 <div style="
-                                    transform: rotate({rot_angle}deg); 
-                                    transform-origin: center;
+                                    transform: rotate({display_angle}deg); 
+                                    white-space: nowrap;
                                     text-align: center;
-                                    width: 150px;
-                                    margin-left: -75px;
+                                    width: 100px;
+                                    margin-left: -50px;
                                     font-size: 8pt; 
                                     color: #00FFFF; 
                                     font-weight: bold; 
@@ -169,7 +170,7 @@ if semak_login():
                         folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.6); padding: 2px 5px; border-radius: 4px; font-size: 10px; border: 1px solid white;"><b>{int(row.STN)}</b></div>""")).add_to(m)
                     folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True).add_to(m)
 
-                st_folium(m, width=1100, height=600, key="webgis_aligned_text")
+                st_folium(m, width=1100, height=600, key="webgis_aligned_final")
 
             with tab2:
                 st.subheader("📥 Muat Turun untuk GIS")
