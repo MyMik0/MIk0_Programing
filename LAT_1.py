@@ -37,7 +37,6 @@ def create_shapefile_zip(gdf):
         with tempfile.TemporaryDirectory() as temp_dir:
             base_name = "poligon_puo_gis"
             path = os.path.join(temp_dir, f"{base_name}.shp")
-            # Menggunakan pyogrio untuk kestabilan di Streamlit Cloud
             gdf.to_file(path, engine="pyogrio") 
             
             zip_buffer = io.BytesIO()
@@ -85,6 +84,7 @@ if semak_login():
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
     st.sidebar.header("⚙️ Kawalan Lapisan")
     
+    # KAWALAN ON/OFF SATELIT
     on_off_satelit = st.sidebar.radio("🗺️ Jenis Peta", ["Satelit (Esri/Google)", "Peta Standard (OSM)"])
     on_off_bearing = st.sidebar.checkbox("📏 Papar Bearing & Jarak", value=True)
     on_off_label = st.sidebar.checkbox("🏷️ Papar Label Stesen", value=True)
@@ -116,11 +116,15 @@ if semak_login():
                 st.metric("Luas Poligon", f"{luas:.3f} m²")
 
                 center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
+                
+                # KONFIGURASI TILE SATELIT VS STANDARD
                 google_sat = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
                 if on_off_satelit == "Satelit (Esri/Google)":
-                    m = folium.Map(location=[center_lat, center_lon], zoom_start=21, tiles=google_sat, attr="Google")
+                    # ON Satelit
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=21, tiles=google_sat, attr="Google Hybrid")
                 else:
+                    # OFF Satelit (Guna OpenStreetMap Standard)
                     m = folium.Map(location=[center_lat, center_lon], zoom_start=21)
 
                 # Melukis Poligon
@@ -133,16 +137,15 @@ if semak_login():
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
                         p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
                         b_text, d_val, _ = kira_bearing_jarak(p1, p2)
-                        
-                        # Cari titik tengah antara dua stesen untuk letak label
                         mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
                         mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
                         
                         folium.Marker(
                             location=[mid_lat, mid_lon],
-                            icon=folium.DivIcon(html=f"""<div style="font-size: 8pt; color: cyan; text-shadow: 1px 1px #000; font-weight: bold; width: 150px;">{b_text}<br>{d_val:.2f}m</div>""")
+                            icon=folium.DivIcon(html=f"""<div style="font-size: 8pt; color: #00FFFF; text-shadow: 1px 1px #000; font-weight: bold; width: 150px;">{b_text}<br>{d_val:.2f}m</div>""")
                         ).add_to(m)
 
+                # PAPAR LABEL STESEN
                 for i, row in df.iterrows():
                     if on_off_label:
                         folium.Marker(
@@ -155,13 +158,12 @@ if semak_login():
 
             with tab2:
                 st.subheader("📥 Muat Turun Data GIS")
-                # Bina geometri poligon untuk eksport
                 geom = Polygon(list(zip(df.E, df.N)))
                 gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
                 
                 col_ex1, col_ex2 = st.columns(2)
                 
-                # Eksport ke GeoJSON (Format GIS Moden)
+                # Eksport GeoJSON
                 col_ex1.write("### 1. GeoJSON")
                 col_ex1.download_button(
                     label="🗺️ Muat Turun GeoJSON",
@@ -170,7 +172,7 @@ if semak_login():
                     mime="application/json"
                 )
                 
-                # Eksport ke Shapefile (Format GIS Standard - ArcGIS/QGIS)
+                # Eksport Shapefile
                 col_ex2.write("### 2. ESRI Shapefile")
                 shp_zip_data = create_shapefile_zip(gdf_export)
                 if shp_zip_data:
