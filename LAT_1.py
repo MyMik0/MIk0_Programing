@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import geopandas as gpd
+import gpd
 from shapely.geometry import Polygon
 import folium
 from folium.plugins import MeasureControl, Fullscreen
@@ -119,13 +119,12 @@ def semak_login():
 # --- 4. ALIRAN EKSEKUSI UTAMA ---
 # ==========================================
 if semak_login():
-    # Jalankan Intro Video Fullscreen dahulu
+    # Jalankan Intro Video Fullscreen
     video_healing_intro()
 
-    # --- CSS UNTUK VIDEO HEADER & GLASSMORPHISM (DASHBOARD) ---
+    # --- CSS UNTUK VIDEO HEADER & NAMA AHMAD ILHAM ---
     st.markdown("""
         <style>
-        /* Container Header dengan Video (Macam screenshot anda) */
         .header-box {
             position: relative;
             width: 100%;
@@ -151,14 +150,25 @@ if semak_login():
             position: relative; z-index: 1;
             color: white; text-align: center;
         }
-        /* Glassmorphism Upload Area */
+        /* Style untuk nama di penjuru bawah */
+        .header-signature {
+            position: absolute;
+            bottom: 15px;
+            right: 25px;
+            z-index: 2;
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
         [data-testid="stFileUploadDropzone"] {
             background: rgba(255, 255, 255, 0.05) !important;
             backdrop-filter: blur(10px);
             border: 2px dashed rgba(255, 255, 255, 0.2) !important;
             border-radius: 15px;
         }
-        /* Metric Styling */
         [data-testid="stMetricLabel"] { color: #555555 !important; font-weight: bold !important; }
         [data-testid="stMetricValue"] { color: #1e3c72 !important; font-weight: 800 !important; }
         .stMetric { background: #ffffff; padding: 20px; border-radius: 15px; }
@@ -171,6 +181,9 @@ if semak_login():
             <div class="header-content">
                 <h1 style='font-size: 3.5rem; letter-spacing: 3px; margin: 0;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
                 <p style='font-size: 1.3rem; opacity: 0.9; font-style: italic;'>Precision Mapping & Visual Healing Experience</p>
+            </div>
+            <div class="header-signature">
+                Developed by: <b>AHMAD ILHAM</b>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -214,12 +227,10 @@ if semak_login():
                 Fullscreen().add_to(m)
                 MeasureControl(position='topleft').add_to(m)
                 
-                # Plot Poligon
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.25).add_to(m)
                 m.fit_bounds(coords)
 
-                # Plot Bearing & Jarak
                 if on_off_bearing:
                     for i in range(len(df)):
                         p1, p2 = (df.iloc[i]['E'], df.iloc[i]['N']), (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
@@ -232,7 +243,6 @@ if semak_login():
                             icon=folium.DivIcon(html=f'<div style="transform: rotate({display_angle}deg); color: #00FFFF; font-weight: bold; text-shadow: 2px 2px 4px #000; font-size: 9pt; text-align:center; width:100px; margin-left:-50px;">{b_text}<br>{d_val:.2f}m</div>')
                         ).add_to(m)
 
-                # Plot Titik Stesen
                 for i, row in df.iterrows():
                     if on_off_label:
                         folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f'<div style="color: white; background: rgba(0,0,0,0.7); padding: 2px 5px; border-radius: 5px; font-size: 10px; border: 1px solid #ffcc00;"><b>{int(row.STN)}</b></div>')).add_to(m)
