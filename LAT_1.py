@@ -88,7 +88,8 @@ def kira_luas(x, y):
 def create_shapefile_zip(gdf):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            path = os.path.join(temp_dir, "poligon_puo.shp")
+            # Guna nama yang konsisten
+            path = os.path.join(temp_dir, "data_geomatik_puo.shp")
             gdf.to_file(path, engine="pyogrio") 
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -150,7 +151,7 @@ def semak_login():
                 if user in senarai_id and pw == pw_betul:
                     st.session_state.logged_in = True
                     st.session_state.intro_done = False 
-                    st.session_state.current_user = user # Simpan ID yang masuk
+                    st.session_state.current_user = user 
                     st.rerun()
                 else:
                     st.error("Ralat: ID atau Kata Laluan Tidak Sah!")
@@ -200,10 +201,8 @@ if semak_login():
         </div>
     """, unsafe_allow_html=True)
 
-    # --- KONFIGURASI SIDEBAR ---
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
     
-    # PEMBETULAN RALAT: Guna .get() untuk elakkan ralat Attribute sebelum login stabil
     user_aktif = st.session_state.get("current_user", "Pengguna")
     st.sidebar.write(f"👤 Pengguna: **{user_aktif}**")
     
@@ -252,26 +251,4 @@ if semak_login():
                         display_angle = b_deg - 90
                         if 90 < b_deg < 270: display_angle += 180
                         folium.Marker(
-                            location=[(df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2, (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2],
-                            icon=folium.DivIcon(html=f'<div style="transform: rotate({display_angle}deg); color: #00FFFF; font-weight: bold; text-shadow: 2px 2px 4px #000; font-size: 9pt; text-align:center; width:100px; margin-left:-50px;">{b_text}<br>{d_val:.2f}m</div>')
-                        ).add_to(m)
-
-                for i, row in df.iterrows():
-                    if on_off_label:
-                        folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f'<div style="color: white; background: rgba(128,0,0,0.8); padding: 2px 5px; border-radius: 5px; font-size: 10px; border: 1px solid #ffcc00;"><b>{int(row.STN)}</b></div>')).add_to(m)
-                    folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True).add_to(m)
-
-                st_folium(m, width=1200, height=600, key="map_output")
-
-            with tab2:
-                st.subheader("📥 Muat Turun Data")
-                geom = Polygon(list(zip(df.E, df.N)))
-                gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
-                st.download_button("🗺️ Simpan ke GeoJSON", data=gdf_export.to_json(), file_name="plotter_puo.geojson")
-                shp_zip = create_shapefile_zip(gdf_export)
-                if shp_zip: st.download_button("📁 Simpan ke Shapefile (ZIP)", data=shp_zip, file_name="plotter_shp.zip")
-
-        except Exception as e:
-            st.error(f"⚠️ Ralat Pemprosesan: {e}")
-    else:
-        st.info("💡 Sila muat naik fail CSV koordinat untuk memulakan.")
+                            location=[(df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2, (df.iloc[i]['lon'] + df.iloc[(i +
