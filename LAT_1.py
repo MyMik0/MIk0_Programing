@@ -251,4 +251,48 @@ if semak_login():
                         display_angle = b_deg - 90
                         if 90 < b_deg < 270: display_angle += 180
                         folium.Marker(
-                            location=[(df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2, (df.iloc[i]['lon'] + df.iloc[(i +
+                            location=[(df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2, (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2],
+                            icon=folium.DivIcon(html=f'<div style="transform: rotate({display_angle}deg); color: #00FFFF; font-weight: bold; text-shadow: 2px 2px 4px #000; font-size: 9pt; text-align:center; width:100px; margin-left:-50px;">{b_text}<br>{d_val:.2f}m</div>')
+                        ).add_to(m)
+
+                for i, row in df.iterrows():
+                    if on_off_label:
+                        folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f'<div style="color: white; background: rgba(128,0,0,0.8); padding: 2px 5px; border-radius: 5px; font-size: 10px; border: 1px solid #ffcc00;"><b>{int(row.STN)}</b></div>')).add_to(m)
+                    folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True).add_to(m)
+
+                st_folium(m, width=1200, height=600, key="map_output")
+
+            with tab2:
+                st.subheader("📥 Muat Turun Data Projek")
+                
+                # --- LOGIK BARU: CANTUMKAN DATA ATRIBUT ---
+                # 1. Bina Poligon
+                geom_poly = Polygon(list(zip(df.E, df.N)))
+                
+                # 2. Sediakan GeoDataFrame dengan Atribut Lengkap
+                # Kita letakkan STN, Easting, dan Northing dalam metadata
+                gdf_export = gpd.GeoDataFrame({
+                    'STN': df['STN'].astype(int),
+                    'Easting': df['E'],
+                    'Northing': df['N'],
+                    'Luas_m2': round(kira_luas(df['E'].values, df['N'].values), 3)
+                }, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
+                
+                # Tambah satu baris untuk Poligon Lot
+                gdf_poly_only = gpd.GeoDataFrame({'STN': [0], 'Easting': [0], 'Northing': [0], 'Luas_m2': [round(kira_luas(df['E'].values, df['N'].values), 3)]}, 
+                                                 geometry=[geom_poly], crs=f"EPSG:{epsg_input}")
+                
+                gdf_final = pd.concat([gdf_export, gdf_poly_only], ignore_index=True)
+
+                st.info("Nota: Fail ini mengandungi titik stesen (STN, E, N) dan poligon lot.")
+                
+                st.download_button("🗺️ Simpan ke GeoJSON", data=gdf_final.to_json(), file_name="plotter_puo_lengkap.geojson")
+                
+                shp_zip = create_shapefile_zip(gdf_final)
+                if shp_zip: 
+                    st.download_button("📁 Simpan ke Shapefile (ZIP)", data=shp_zip, file_name="plotter_shp_pro.zip")
+
+        except Exception as e:
+            st.error(f"⚠️ Ralat Pemprosesan: {e}")
+    else:
+        st.info("💡 Sila muat naik fail CSV koordinat untuk memulakan.")
