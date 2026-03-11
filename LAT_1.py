@@ -1,10 +1,15 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import geopandas as gpd  # Gunakan ini sahaja
+import geopandas as gpd
 from shapely.geometry import Polygon
 import folium
 from streamlit_folium import st_folium
+import io
+import zipfile
+import tempfile
+import os
+
 # --- 1. FUNGSI MATEMATIK & GEOMATIK ---
 
 def to_dms(deg):
@@ -112,11 +117,11 @@ if semak_login():
                 
                 google_sat = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
-                # --- ZOOM DIUBAH KE 20 ---
+                # --- ZOOM DIUBAH KE TAHAP MAKSIMUM (21) ---
                 if on_off_satelit == "Satelit (Esri/Google)":
-                    m = folium.Map(location=[center_lat, center_lon], zoom_start=20, tiles=google_sat, attr="Google")
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=21, tiles=google_sat, attr="Google")
                 else:
-                    m = folium.Map(location=[center_lat, center_lon], zoom_start=20)
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=21)
 
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
@@ -125,7 +130,7 @@ if semak_login():
                     if on_off_label:
                         folium.Marker(
                             location=[row.lat, row.lon],
-                            icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.5); border-radius:3px; padding:2px;"><b>{int(row.STN)}</b></div>"""),
+                            icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.5); border-radius:3px; padding:2px; font-size:10px;"><b>{int(row.STN)}</b></div>"""),
                         ).add_to(m)
                     folium.CircleMarker(location=[row.lat, row.lon], radius=3, color="red").add_to(m)
 
@@ -147,4 +152,3 @@ if semak_login():
             st.error(f"Ralat: Sila pastikan EPSG:4390 sesuai dengan koordinat CSV anda. {e}")
     else:
         st.info("Sila muat naik fail CSV untuk bermula.")
-
