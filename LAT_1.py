@@ -40,7 +40,7 @@ def video_healing_intro():
                 </style>
                 <div class="intro-video-container">
                     <video autoplay muted playsinline>
-                        <source src="https://player.vimeo.com/external/470659635.sd.mp4?s=344583196901848527a0808246d8f8d689b78e22&profile_id=165&oauth2_token_id=57447761" type="video/mp4">
+                        <source src="PROM.mp4" type="video/mp4">
                     </video>
                     <div class="intro-text">
                         <h1 style="font-size: 4rem; letter-spacing: 10px; margin-bottom: 0;">PUO GEOMATIK</h1>
@@ -175,7 +175,7 @@ if semak_login():
 
         <div class="header-box">
             <video autoplay muted loop playsinline class="header-video">
-                <source src="https://player.vimeo.com/external/470659635.sd.mp4?s=344583196901848527a0808246d8f8d689b78e22&profile_id=165&oauth2_token_id=57447761" type="video/mp4">
+                <source src="PROM.mp4" type="video/mp4">
             </video>
             <div class="header-content">
                 <h1 style='font-size: 3.5rem; letter-spacing: 3px; margin: 0;'>🛰️ PUO WEB-GIS PRO-PLOTTER</h1>
