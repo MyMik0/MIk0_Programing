@@ -118,17 +118,11 @@ if semak_login():
                 center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
                 google_hybrid = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
-                # TETAPAN ZOOM MAKSIMUM (TAHAP 22)
+                # TETAPAN ZOOM ULTRA (TAHAP 22)
                 if on_off_satelit == "Satelit (Google Hybrid)":
-                    m = folium.Map(location=[center_lat, center_lon], 
-                                   zoom_start=22, 
-                                   max_zoom=22, 
-                                   tiles=google_hybrid, 
-                                   attr="Google")
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=22, max_zoom=22, tiles=google_hybrid, attr="Google")
                 else:
-                    m = folium.Map(location=[center_lat, center_lon], 
-                                   zoom_start=20, 
-                                   max_zoom=22)
+                    m = folium.Map(location=[center_lat, center_lon], zoom_start=20, max_zoom=22)
 
                 Fullscreen().add_to(m)
                 MeasureControl(position='topleft', primary_length_unit='meters').add_to(m)
@@ -136,24 +130,46 @@ if semak_login():
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
 
-                # FIT BOUNDS UNTUK AUTOFOCUS TETAPI KEKAL ZOOM DEKAT
                 m.fit_bounds(coords, max_zoom=22)
 
+                # --- PAPAR BEARING & JARAK MENGIKUT GARISAN ---
                 if on_off_bearing:
                     for i in range(len(df)):
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
                         p2 = (df.iloc[(i + 1) % len(df)]['E'], df.iloc[(i + 1) % len(df)]['N'])
-                        b_text, d_val, _ = kira_bearing_jarak(p1, p2)
+                        b_text, d_val, b_deg = kira_bearing_jarak(p1, p2)
+                        
                         mid_lat = (df.iloc[i]['lat'] + df.iloc[(i + 1) % len(df)]['lat']) / 2
                         mid_lon = (df.iloc[i]['lon'] + df.iloc[(i + 1) % len(df)]['lon']) / 2
-                        folium.Marker(location=[mid_lat, mid_lon], icon=folium.DivIcon(html=f"""<div style="font-size: 9pt; color: #00FFFF; font-weight: bold; text-shadow: 1px 1px #000; width: 150px;">{b_text}<br>{d_val:.2f}m</div>""")).add_to(m)
+                        
+                        # Laraskan sudut tulisan: Sudut CSS dikira dari ufuk (horizontal)
+                        # Kita tolak 90 kerana bearing geomatik bermula dari Utara
+                        rot_angle = b_deg - 90
+                        if 90 < b_deg < 270: rot_angle += 180 # Supaya tulisan tidak terbalik (upside down)
+
+                        folium.Marker(
+                            location=[mid_lat, mid_lon],
+                            icon=folium.DivIcon(html=f"""
+                                <div style="
+                                    transform: rotate({rot_angle}deg); 
+                                    transform-origin: center;
+                                    text-align: center;
+                                    width: 150px;
+                                    margin-left: -75px;
+                                    font-size: 8pt; 
+                                    color: #00FFFF; 
+                                    font-weight: bold; 
+                                    text-shadow: 1px 1px #000;">
+                                    {b_text}<br>{d_val:.2f}m
+                                </div>""")
+                        ).add_to(m)
 
                 for i, row in df.iterrows():
                     if on_off_label:
                         folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.6); padding: 2px 5px; border-radius: 4px; font-size: 10px; border: 1px solid white;"><b>{int(row.STN)}</b></div>""")).add_to(m)
                     folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True).add_to(m)
 
-                st_folium(m, width=1100, height=600, key="webgis_ultra_zoom")
+                st_folium(m, width=1100, height=600, key="webgis_aligned_text")
 
             with tab2:
                 st.subheader("📥 Muat Turun untuk GIS")
