@@ -4,7 +4,7 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon
 import folium
-from folium import plugins
+from folium.plugins import MeasureControl, Fullscreen  # Import yang betul
 from streamlit_folium import st_folium
 import io
 import zipfile
@@ -38,7 +38,6 @@ def create_shapefile_zip(gdf):
         with tempfile.TemporaryDirectory() as temp_dir:
             base_name = "poligon_gis_puo"
             path = os.path.join(temp_dir, f"{base_name}.shp")
-            # Menggunakan engine pyogrio untuk kelancaran eksport
             gdf.to_file(path, engine="pyogrio") 
             
             zip_buffer = io.BytesIO()
@@ -83,7 +82,6 @@ if semak_login():
     except:
         pass
 
-    # Sidebar
     st.sidebar.image("https://upload.wikimedia.org/wikipedia/ms/thumb/0/05/Logo_PUO.png/200px-Logo_PUO.png", width=150)
     st.sidebar.header("⚙️ Kawalan Lapisan")
     
@@ -106,7 +104,7 @@ if semak_login():
         df = pd.read_csv(uploaded_file)
         
         try:
-            # Penukaran Koordinat ke WGS84
+            # Penukaran Koordinat
             gdf_raw = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.E, df.N), crs=f"EPSG:{epsg_input}")
             gdf_wgs84 = gdf_raw.to_crs(epsg="4326")
             df['lat'] = gdf_wgs84.geometry.y
@@ -118,7 +116,6 @@ if semak_login():
                 luas = kira_luas(df['E'].values, df['N'].values)
                 st.metric("Luas Poligon", f"{luas:.3f} m²")
 
-                # Konfigurasi Peta
                 center_lat, center_lon = df['lat'].mean(), df['lon'].mean()
                 google_hybrid = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 
@@ -127,18 +124,18 @@ if semak_login():
                 else:
                     m = folium.Map(location=[center_lat, center_lon], zoom_start=19)
 
-                # Tambah Skala & Skrin Penuh
-                folium.plugins.Fullscreen().add_to(m)
-                folium.MeasureControl(position='topleft', primary_length_unit='meters').add_to(m)
+                # PEMBETULAN PLUGINS:
+                Fullscreen().add_to(m)
+                MeasureControl(position='topleft', primary_length_unit='meters').add_to(m)
 
                 # Lukis Poligon
                 coords = list(zip(df.lat, df.lon))
                 folium.Polygon(locations=coords, color="yellow", weight=3, fill=True, fill_opacity=0.2).add_to(m)
 
-                # Auto-Zoom ke Poligon
+                # Auto-Zoom
                 m.fit_bounds(coords)
 
-                # Papar Bearing & Jarak
+                # Bearing & Jarak
                 if on_off_bearing:
                     for i in range(len(df)):
                         p1 = (df.iloc[i]['E'], df.iloc[i]['N'])
@@ -153,7 +150,7 @@ if semak_login():
                             icon=folium.DivIcon(html=f"""<div style="font-size: 9pt; color: #00FFFF; font-weight: bold; text-shadow: 1px 1px #000; width: 150px;">{b_text}<br>{d_val:.2f}m</div>""")
                         ).add_to(m)
 
-                # Papar Label Stesen
+                # Label Stesen
                 for i, row in df.iterrows():
                     if on_off_label:
                         folium.Marker(
@@ -162,7 +159,7 @@ if semak_login():
                         ).add_to(m)
                     folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True).add_to(m)
 
-                st_folium(m, width=1100, height=600, key="webgis_final")
+                st_folium(m, width=1100, height=600, key="webgis_fixed")
 
             with tab2:
                 st.subheader("📥 Muat Turun untuk GIS")
@@ -171,16 +168,13 @@ if semak_login():
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.info("GeoJSON sesuai untuk QGIS & Google Earth.")
                     st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_export.to_json(), file_name="poligon_puo.geojson")
-                
                 with c2:
-                    st.info("Shapefile sesuai untuk ArcGIS/Professional GIS.")
                     shp_zip = create_shapefile_zip(gdf_export)
                     if shp_zip:
                         st.download_button("📁 Muat Turun Shapefile (ZIP)", data=shp_zip, file_name="poligon_puo_shp.zip")
 
         except Exception as e:
-            st.error(f"Sila pastikan format CSV betul (STN, E, N) dan Kod EPSG tepat. Ralat: {e}")
+            st.error(f"Ralat Pemprosesan: {e}")
     else:
-        st.info("Sila muat naik fail CSV untuk memulakan pemetaan.")
+        st.info("Sila muat naik fail CSV.")
