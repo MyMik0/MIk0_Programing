@@ -10,9 +10,66 @@ import io
 import zipfile
 import tempfile
 import os
+import time
 
 # ==========================================
-# --- 1. FUNGSI MATEMATIK & GEOMATIK ---
+# --- 1. FUNGSI VIDEO HEALING INTRO ---
+# ==========================================
+
+def video_healing_intro():
+    if "intro_done" not in st.session_state:
+        st.session_state.intro_done = False
+
+    if not st.session_state.intro_done:
+        # Skrin Intro dengan Video
+        placeholder = st.empty()
+        with placeholder.container():
+            st.markdown("""
+                <style>
+                .video-container {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    overflow: hidden;
+                    z-index: 9999;
+                    background: black;
+                }
+                video {
+                    width: 100vw;
+                    height: 100vh;
+                    object-fit: cover;
+                }
+                .overlay-text {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    color: white;
+                    text-align: center;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+                }
+                </style>
+                <div class="video-container">
+                    <video autoplay muted playsinline>
+                        <source src="https://player.vimeo.com/external/470659635.sd.mp4?s=344583196901848527a0808246d8f8d689b78e22&profile_id=165&oauth2_token_id=57447761" type="video/mp4">
+                    </video>
+                    <div class="overlay-text">
+                        <h1 style="font-size: 3rem; letter-spacing: 5px;">PUO GEOMATIK</h1>
+                        <p style="font-size: 1.2rem; opacity: 0.9;">Sila tunggu sebentar, sistem sedang dimuatkan...</p>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            time.sleep(7)  # Tempoh video 7 saat
+            st.session_state.intro_done = True
+            placeholder.empty()
+            st.rerun()
+
+# ==========================================
+# --- 2. FUNGSI MATEMATIK & GEOMATIK ---
 # ==========================================
 
 def to_dms(deg):
@@ -51,7 +108,7 @@ def create_shapefile_zip(gdf):
         return None
 
 # ==========================================
-# --- 2. SISTEM LOG MASUK ---
+# --- 3. SISTEM LOG MASUK ---
 # ==========================================
 
 def semak_login():
@@ -90,10 +147,13 @@ def semak_login():
     return True
 
 # ==========================================
-# --- 3. APLIKASI UTAMA (WEB-GIS) ---
+# --- 4. APLIKASI UTAMA (WEB-GIS) ---
 # ==========================================
 
 if semak_login():
+    # Jalankan video intro selepas login berjaya
+    video_healing_intro()
+
     try:
         st.set_page_config(page_title="PUO Geomatik - WebGIS Pro", layout="wide")
     except:
@@ -112,13 +172,12 @@ if semak_login():
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             border-bottom: 4px solid #ffcc00;
         }
-        /* GELAPKAN TEKS KELUASAN (METRIC) */
         [data-testid="stMetricLabel"] {
-            color: #333333 !important; /* Warna label kelabu gelap */
+            color: #333333 !important;
             font-weight: bold !important;
         }
         [data-testid="stMetricValue"] {
-            color: #1e3c72 !important; /* Warna nilai biru gelap */
+            color: #1e3c72 !important;
             font-weight: 800 !important;
         }
         .stMetric {
@@ -146,6 +205,7 @@ if semak_login():
     
     if st.sidebar.button("Keluar Sistem"):
         st.session_state.logged_in = False
+        st.session_state.intro_done = False # Reset intro untuk login seterusnya
         st.rerun()
 
     uploaded_file = st.file_uploader("📂 Muat naik fail CSV Koordinat (STN, E, N)", type=["csv"])
@@ -162,7 +222,6 @@ if semak_login():
             tab1, tab2 = st.tabs(["📊 Paparan Peta Interaktif", "📥 Eksport Data GIS"])
 
             with tab1:
-                # Paparan Keluasan yang telah digelapkan
                 luas = kira_luas(df['E'].values, df['N'].values)
                 st.metric("Keluasan Poligon (m²)", f"{luas:.3f}")
 
@@ -195,27 +254,12 @@ if semak_login():
 
                         folium.Marker(
                             location=[mid_lat, mid_lon],
-                            icon=folium.DivIcon(html=f"""
-                                <div style="
-                                    transform: rotate({display_angle}deg); 
-                                    white-space: nowrap;
-                                    text-align: center;
-                                    width: 120px;
-                                    margin-left: -60px;
-                                    font-size: 8.5pt; 
-                                    color: #00FFFF; 
-                                    font-weight: bold; 
-                                    text-shadow: 2px 2px 4px #000;">
-                                    {b_text}<br>{d_val:.2f}m
-                                </div>""")
+                            icon=folium.DivIcon(html=f"""<div style="transform: rotate({display_angle}deg); white-space: nowrap; text-align: center; width: 120px; margin-left: -60px; font-size: 8.5pt; color: #00FFFF; font-weight: bold; text-shadow: 2px 2px 4px #000;">{b_text}<br>{d_val:.2f}m</div>""")
                         ).add_to(m)
 
                 for i, row in df.iterrows():
                     if on_off_label:
-                        folium.Marker(
-                            location=[row.lat, row.lon],
-                            icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 5px; font-size: 10px; border: 1px solid #ffcc00; min-width:20px; text-align:center;"><b>{int(row.STN)}</b></div>"""),
-                        ).add_to(m)
+                        folium.Marker(location=[row.lat, row.lon], icon=folium.DivIcon(html=f"""<div style="color: white; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 5px; font-size: 10px; border: 1px solid #ffcc00; min-width:20px; text-align:center;"><b>{int(row.STN)}</b></div>""")).add_to(m)
                     folium.CircleMarker(location=[row.lat, row.lon], radius=4, color="red", fill=True, fill_color="white", fill_opacity=1).add_to(m)
 
                 st_folium(m, width=1200, height=650, key="main_map_pro")
@@ -225,12 +269,10 @@ if semak_login():
                 geom = Polygon(list(zip(df.E, df.N)))
                 gdf_export = gpd.GeoDataFrame(index=[0], geometry=[geom], crs=f"EPSG:{epsg_input}")
                 c1, c2 = st.columns(2)
-                with c1:
-                    st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_export.to_json(), file_name="poligon_puo.geojson")
-                with c2:
+                with c1: st.download_button("🗺️ Muat Turun GeoJSON", data=gdf_export.to_json(), file_name="poligon.geojson")
+                with c2: 
                     shp_zip = create_shapefile_zip(gdf_export)
-                    if shp_zip:
-                        st.download_button("📁 Muat Turun Shapefile (ZIP)", data=shp_zip, file_name="poligon_puo_shp.zip")
+                    if shp_zip: st.download_button("📁 Muat Turun Shapefile (ZIP)", data=shp_zip, file_name="poligon_shp.zip")
 
         except Exception as e:
             st.error(f"⚠️ Ralat: {e}")
