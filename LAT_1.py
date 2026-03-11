@@ -142,8 +142,26 @@ if semak_login():
             c1, c2 = st.columns(2)
             c1.download_button("🗺️ Simpan GeoJSON", data=gdf_export.to_json(), file_name="puo_map.geojson")
             
-            shp_zip = create_shapefile_zip(gdf_export)
-            c2.download_button("📁 Simpan Shapefile (ZIP)", data=shp_zip, file_name="puo_shp.zip")
+# --- FUNGSI EKSPORT (VERSI TANPA CACHE) ---
+def create_shapefile_zip(gdf):
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Simpan fail shapefile ke folder sementara
+            base_name = "poligon_puo"
+            path = os.path.join(temp_dir, f"{base_name}.shp")
+            gdf.to_file(path)
+            
+            # Masukkan semua komponen shapefile (.shp, .shx, .dbf, .prj) ke dalam ZIP
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+                for root, _, files in os.walk(temp_dir):
+                    for file in files:
+                        zip_file.write(os.path.join(root, file), arcname=file)
+            return zip_buffer.getvalue()
+    except Exception as e:
+        st.error(f"Gagal mencipta fail Shapefile: {e}")
+        return None
     else:
         st.info("Sila muat naik fail CSV.")
+
 
